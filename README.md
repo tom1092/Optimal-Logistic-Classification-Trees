@@ -1,2 +1,2 @@
 # Optimal-Logistic-Classification-Trees
-Repository of the paper
+Repository of the paper OLCT
