@@ -6,7 +6,59 @@ from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 
 class TreeNode:
-    def __init__(self, id, depth, left_node_id = None, right_node_id = None, left_node = None, right_node = None, feature = None, threshold = None, is_leaf = None, value = None):
+
+    def __init__(self, id: int, 
+                 depth: int, 
+                 left_node_id: int = None , 
+                 right_node_id: int = None, 
+                 left_node: TreeNode = None, 
+                 right_node: TreeNode = None, 
+                 feature: int = None, 
+                 threshold: float = None, 
+                 is_leaf: bool = None, 
+                 value: int =  None):
+        
+
+        """
+        This method is the constructor for a TreeNode object, which is a general node in a Classification Tree (CT).
+        It initializes the object with the following parameters:
+
+        Parameters:
+
+            :param: id (int): The unique identifier of the node.
+            :param: depth (int): The depth of the node in the tree.
+            :param: left_node_id (int): The unique identifier of the left child node. Default is None.
+            :param: right_node_id (int): The unique identifier of the right child node. Default is None.
+            :param: left_node (TreeNode): The left child node. Default is None.
+            :param: right_node (TreeNode): The right child node. Default is None.
+            :param: feature (int): The index of the feature used for splitting the node for axis-aligned CT. Default is None.
+            :param: threshold (float): The threshold value used for splitting the node. Default is None.
+            :param: is_leaf (bool): Whether the node is a leaf node or not. Default is None.
+            :param: value (int): The predicted value of the node. Default is None.
+
+        Attributes:
+
+            id (int): The unique identifier of the node.
+            depth (int): The depth of the node in the tree.
+            left_node_id (int): The unique identifier of the left child node. Initialized as None.
+            right_node_id (int): The unique identifier of the right child node. Initialized as None.
+            left_node (TreeNode): The left child node. Initialized as None.
+            right_node (TreeNode): The right child node. Initialized as None.
+            feature (int): The index of the feature used for splitting the node. Initialized as None.
+            threshold (float): The threshold value used for splitting the node. Initialized as None.
+            is_leaf (bool): Whether the node is a leaf node or not. Initialized as None.
+            parent_id (int): The unique identifier of the parent node. Initialized as -1.
+            value (int): The predicted value of the node. Initialized as None.
+            data_idxs (list of int): The indices of the data points in the node. Initialized as an empty list.
+            weights (numpy array): The weights of the data points in the node. Initialized as None.
+            C (float): The regularization hyperparameter for oblique trees with norm penalty. Initialized as 1.
+            w (numpy array): The weights for the linear SVM. Initialized as None.
+            non_zero_weights_number (int): The number of non-zero weights for the linear SVM. Initialized as -1.
+            intercept (float): The intercept for the linear SVM. Initialized as None.
+            prob (float): The probability for the linear SVM. Initialized as None.
+            impurity (float): The impurity of the node. Initialized as None.
+
+        """
         self.id = id
         self.depth = depth
         self.left_node_id = left_node_id
@@ -32,22 +84,35 @@ class TreeNode:
         self.impurity = None
 
 
-    
-    @staticmethod
-    def copy_node(node):
-        new = TreeNode(node.id, node.depth, node.left_node_id, node.right_node_id, node.left_node, node.right_node, node.feature, node.threshold, node.is_leaf, node.value)
-        new.parent_id = node.parent_id
-        new.data_idxs = node.data_idxs
-        new.impurity = node.impurity
-        new.weights = node.weights
-        new.intercept = node.intercept
-        new.w = node.w
-        return new
 
 
 class ClassificationTree:
 
-    def __init__(self, min_samples=None, oblique = False, depth = None, decisor = False):
+    def __init__(self, min_samples=None, 
+                 oblique = False, 
+                 depth = None, 
+                 decisor = False):
+        
+        """
+            This method is the constructor for a Tree object, which represents a decision tree or support vector machine (SVM) tree. It initializes the object with the following parameters:
+
+            Parameters:
+
+                min_samples (int): The minimum number of samples required to split a node. Default is None.
+                oblique (bool): Whether the tree is oblique or not. Default is False.
+                depth (int): The maximum depth of the tree. Default is None.
+                decisor (bool): Whether the tree is a 'decisor' tree or not. Default is False.
+
+            Attributes:
+
+                tree (dict): A dictionary representing the tree structure.
+                min_samples (int): The minimum number of samples required to split a node.
+                depth (int): The maximum depth of the tree.
+                n_leaves (int): The number of leaf nodes in the tree. Initialized as 0.
+                oblique (bool): Whether the tree is oblique or not.
+                n_nodes (int): The number of nodes in the tree. Initialized as None.
+                decisor (bool): Whether the tree is a 'decisor' tree or not
+        """
         self.tree = {}
         self.min_samples = min_samples
         self.depth = depth
@@ -63,7 +128,7 @@ class ClassificationTree:
 
 
     #Crea l'albero iniziale in forma di dizionario partendo da un albero con radice root_node
-    def initialize(self, data, label, root_node):
+    def initialize(self, data, root_node):
         self.depth = self.get_depth(root_node)
 
         
@@ -562,100 +627,6 @@ class ClassificationTree:
         
         return branches, leaves
 
-
-
-    #Create two new leaves of the node and set their labels by majority
-    @staticmethod
-    def create_new_children(node, X, y, max_id, feature, threshold, oblique = False, weights=None, intercept=None):
-
-        node.is_leaf = False
-        node.feature = feature
-        node.threshold = threshold
-        if oblique:
-            node.weights = weights
-            node.intercept = intercept
-        id_left = max_id+1
-        id_right = max_id+2
-        left_child_node = TreeNode(id_left, node.depth+1, -1, -1, None, None, None, None, True, None)
-        right_child_node = TreeNode(id_right, node.depth+1, -1, -1, None, None, None, None, True, None)
-        left_child_node.parent_id = node.id
-        right_child_node.parent_id = node.id
-        node.left_node_id = id_left
-        node.right_node_id = id_right
-        node.left_node = left_child_node
-        node.right_node = right_child_node
-
-        ClassificationTree.build_idxs_of_subtree(X, node.data_idxs, node, oblique)
-        bins = np.bincount(y[left_child_node.data_idxs])
-        best_class_left = -1
-        best_class_right = -1
-        if len(bins > 0):
-            best_class_left = bins.argmax()
-        bins = np.bincount(y[right_child_node.data_idxs])
-        if len(bins > 0):
-            best_class_right = bins.argmax()
-        left_child_node.value = best_class_left
-        right_child_node.value = best_class_right
-
-
-    #Delete a given node from the tree
-    @staticmethod
-    def delete_node(node_id, tree):
-        T = tree.tree
-        stack = [node_id]
-        while (len(stack) > 0):
-            actual_node = stack.pop()
-            if not T[actual_node].is_leaf:
-                stack.append(T[actual_node].left_node_id)
-                stack.append(T[actual_node].right_node_id)
-            T.pop(actual_node)
-
-
-    #Replace the sub tree rooted at node_A with the one rooted at node_B
-    @staticmethod
-    def replace_node(node_A, node_B, tree):
-        tree = tree.tree
-
-        #Save id of the father
-        parent_A_id = node_A.parent_id
-        if parent_A_id != -1:
-            parent_A = tree[parent_A_id]
-            #need to understand if a was lef or right child
-            if parent_A.left_node_id == node_A.id:
-                parent_A.left_node_id = node_B.id
-                parent_A.left_node = node_B
-
-            elif parent_A.right_node_id == node_A.id:
-                parent_A.right_node_id = node_B.id
-                parent_A.right_node = node_B
-
-        node_B.parent_id = parent_A_id
-
-        #reset the depth of each node of the subtree rooted at node_B
-        node_B.depth = node_A.depth
-        stack = [node_B]
-        while (len(stack) > 0):
-            actual_node = stack.pop()
-            if not actual_node.is_leaf:
-                actual_node.left_node.depth = actual_node.depth + 1
-                actual_node.right_node.depth = actual_node.depth + 1
-                stack.append(actual_node.left_node)
-                stack.append(actual_node.right_node)
-
-
-
-    #Get the list of the features used by each node of the tree
-    @staticmethod
-    def get_features(T):
-        features = []
-        stack = [T.tree[0]]
-        while stack:
-            actual = stack.pop()
-            if not actual.is_leaf:
-                features.append(actual.feature)
-                stack.append(actual.left_node)
-                stack.append(actual.right_node)
-        return features
 
 
     #Compute the positive probabilities for each leaf
