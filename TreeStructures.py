@@ -88,20 +88,25 @@ class TreeNode:
 
 class ClassificationTree:
 
-    def __init__(self, min_samples=None, 
-                 oblique = False, 
-                 depth = None, 
-                 decisor = False):
+    def __init__(self, min_samples:int  =None, 
+                 oblique : bool = False, 
+                 depth : int = None, 
+                 decisor : bool = False):
         
         """
-            This method is the constructor for a Tree object, which represents a decision tree or support vector machine (SVM) tree. It initializes the object with the following parameters:
+            This method is the constructor for a Tree object, 
+            which represents a classification tree or a 'decisor' tree
+            i.e. a structure where each branch is a linear classifier (svm/logistic)
+            in these cases the final label is predicted by the last branch rather than by the leaf
+            on which the point fall. 
+            It initializes the object with the following parameters:
 
             Parameters:
 
-                min_samples (int): The minimum number of samples required to split a node. Default is None.
-                oblique (bool): Whether the tree is oblique or not. Default is False.
-                depth (int): The maximum depth of the tree. Default is None.
-                decisor (bool): Whether the tree is a 'decisor' tree or not. Default is False.
+                :param: min_samples (int): The minimum number of samples required to split a node. Default is None.
+                :param: oblique (bool): Whether the tree is oblique or not. Default is False.
+                :param: depth (int): The maximum depth of the tree. Default is None.
+                :param: decisor (bool): Whether the tree is a 'decisor' tree or not. Default is False.
 
             Attributes:
 
@@ -113,6 +118,7 @@ class ClassificationTree:
                 n_nodes (int): The number of nodes in the tree. Initialized as None.
                 decisor (bool): Whether the tree is a 'decisor' tree or not
         """
+
         self.tree = {}
         self.min_samples = min_samples
         self.depth = depth
@@ -120,15 +126,35 @@ class ClassificationTree:
         self.oblique = oblique
         self.n_nodes = None
 
-        #This attribute indicate if the tree is a 'decisor' tree
-        #i.e. a structure where each branch is a linear classifier (svm/logistic)
-        #in these cases the final label is predicted by the last branch rather than by the leaf
-        #on which the point fall
+        
         self.decisor = decisor
 
 
-    #Crea l'albero iniziale in forma di dizionario partendo da un albero con radice root_node
-    def initialize(self, data, root_node):
+    
+    def initialize(self, 
+                   data : np.array, 
+                   root_node : TreeNode):
+        
+
+        """
+        This method initializes a binary tree structure based on a dictionary data input. 
+        The method takes two parameters:
+
+        Parameters:
+
+            :param data: The np.array containing training data to initialize the tree.
+            :param root_node: The root node of the tree.
+
+        The method creates the tree structure by performing a depth-first search traversal of the tree. 
+        It initializes the root node, sets the depth of the tree, and adds it to the tree structure. 
+        Then, it traverses the tree by iterating through the nodes on a stack.
+
+        After initializing all the nodes, the method sets the parent ids for each node, and builds the sets of indexes for each node. 
+        The sets of indexes represent the data samples that are covered by each node.
+
+        Overall, this method initializes a binary tree structure based on a dictionary structure and builds the sets of indexes for each node.
+
+        """
         self.depth = self.get_depth(root_node)
 
         
@@ -149,23 +175,34 @@ class ClassificationTree:
                 if n.value==-1:
                     n.value = 0
 
-        #Imposto i padri ogni figlio
+        #Set each father
         for i in range(len(self.tree)):
-            #Verifico se è un branch
+            #If it's a branch node
             if self.tree[i].left_node_id != self.tree[i].right_node_id:
-                #In tal caso setto i relativi padri
                 self.tree[self.tree[i].left_node_id].parent_id = i
                 self.tree[self.tree[i].right_node_id].parent_id = i
                 self.tree[self.tree[i].id].left_node = self.tree[self.tree[i].left_node_id]
                 self.tree[self.tree[i].id].right_node = self.tree[self.tree[i].right_node_id]
 
-        #Costruisco indici elementi del dataset associati ad ogni nodo
+        #Build the sets of indexes for each node
         self.build_idxs_of_subtree(data, range(len(data)), self.tree[0], oblique = self.oblique)
 
 
 
-    #Crea l'albero iniziale random e completo (bilanciato) in forma di dizionario 
-    def random_complete_initialize(self, n_features):
+
+    def random_complete_initialize(self, n_features:int):
+
+
+        """
+        This method creates a complete (balanced) axis-aligned classification tree
+        using a randomized intialization both for the feature and threshold of each node.
+        Threshold are initialized with uniform in [0, 1].
+
+
+        Parameters:
+            :param: n_features: the number of features of the data
+        """
+
         id = 0
         depth = 0
         root = TreeNode(id, depth)
@@ -214,8 +251,18 @@ class ClassificationTree:
 
 
 
-    #Initialize a Classification tree given a CART structure (sklearn tree object)
-    def initialize_from_CART(self, data, label, clf):
+    def initialize_from_CART(self, data: np.array, clf: DecisionTreeClassifier):
+
+        """
+        This function initializes the classification tree object
+        given a CART (Classification and Regression Tree) structure of the scikit-learn tree object. 
+
+        Parameters:
+            :param: data: the np.array containing the train data
+            :param: clf: the fitted sklearn DecisionTreeClassifier 
+
+        """
+
         self.depth = clf.tree_.max_depth
         n_nodes = clf.tree_.node_count
         self.n_nodes = n_nodes
@@ -229,7 +276,7 @@ class ClassificationTree:
         # as the depth of each node and whether or not it is a leaf.
         node_depth = np.zeros(shape=n_nodes, dtype=np.int64)
         is_leaves = np.zeros(shape=n_nodes, dtype=bool)
-        stack = [(0, -1)]  # seed is the root node id and its parent depth
+        stack = [(0, -1)]  
         while len(stack) > 0:
             node_id, parent_depth = stack.pop()
             node_depth[node_id] = parent_depth + 1
@@ -251,7 +298,7 @@ class ClassificationTree:
 
         #Set father
         for i in range(len(self.tree)):
-            #VTest if it is a branch
+            #Test if it is a branch
             if self.tree[i].left_node_id != self.tree[i].right_node_id:
                 self.tree[self.tree[i].left_node_id].parent_id = i
                 self.tree[self.tree[i].right_node_id].parent_id = i
@@ -263,8 +310,17 @@ class ClassificationTree:
         self.depth = self.get_depth(self.tree[0])
 
 
-    #Get the depth of the tree
-    def get_depth(self, root):
+
+    def get_depth(self, root:TreeNode):
+
+        """
+            This method compute a DFS to infer the depth of the sub-tree rooted at root
+
+            Parameters:
+
+                :param: root: The TreeNode object which is the root of the subtree of which you want to know the depth
+        """
+
         stack = [root]
         depth = 0
         while(stack):
@@ -277,8 +333,20 @@ class ClassificationTree:
         return depth
 
 
-    #Predict the label of the point starting from the node 'root'
-    def predict_p(self, point, root):
+
+
+    def predict_p(self, point: np.array, root: TreeNode):
+
+        """
+        This method return the predicted label for a single point, starting from the node rooted at root.
+
+        Parameters:
+
+            :param: point: the point you want to predict.
+            :param: root: The TreeNode object which is the root of the classification tree
+
+        """
+
         actual = root
         while(not actual.is_leaf):
             if point[actual.feature] < actual.threshold:
@@ -288,14 +356,33 @@ class ClassificationTree:
         return actual.value
     
 
-    #Return the np array of predicstions for each sample in data starting from the node 'root'
-    def predict_data(self, data, root):
+
+
+    def predict_data(self, data: np.array, root: TreeNode):
+
+        """
+            Return the np array of predicstions for each sample in data starting from the node 'root'.
+
+            Parameters:
+
+                :param: data: the np.array containing the points you want to predict
+
+        """
         return np.array([self.predict_p(p, root) for p in data])
 
 
     
     @staticmethod
-    def copy_tree(tree):
+    def copy_tree(tree: ClassificationTree):
+
+        """
+            This method create a copy of the Classification Tree object given as parameter
+
+            Parameters:
+
+                :param: tree: The Classification Tree object that you want to get a copy of
+        """
+
         new = ClassificationTree(min_samples=tree.min_samples, oblique = tree.oblique)
         new.depth = tree.depth
         new.n_leaves = tree.n_leaves
@@ -306,8 +393,6 @@ class ClassificationTree:
             new.tree[node_id].weights = node.weights
             new.tree[node_id].intercept = node.intercept
 
-        #Ora che ho istanziato tutti i nodi vado a settare i puntatori ai figli per ogni nodo
-        #Uso una BFS
         stack = [new.tree[0]]
         while stack:
             actual = stack.pop()
@@ -320,9 +405,17 @@ class ClassificationTree:
         return new
 
 
-    #Get the list of nodes at a given depth
     @staticmethod
-    def get_nodes_at_depth(depth, tree):
+    def get_nodes_at_depth(depth: int, tree: ClassificationTree):
+        """
+            This method returns the list of nodes at a the given depth of the Classification Tree object
+            given as parameter
+
+            Parameters:
+
+                :param: depth: the depth of the nodes you want to retrieve
+                :param: tree: the ClassificationTree object
+        """
         nodes = []
         for (id, node) in tree.tree.items():
             if node.depth == depth:
@@ -330,8 +423,17 @@ class ClassificationTree:
         return nodes
 
 
-    #Print the structure of the tree in a readable way
+
+    
     def print_tree_structure(self):
+
+        """
+            This method prints the structure of the tree in a readable way.
+
+            Parameters:
+
+
+        """
 
         print("The binary tree has %s nodes and has "
               "the following structure:"
@@ -376,8 +478,20 @@ class ClassificationTree:
 
 
     #Build the sets of the indexes of the data points that reach each node in the tree
-    def build_idxs_of_subtree(self, data, idxs, root_node, oblique=False):
+    def build_idxs_of_subtree(self, data: np.array, idxs: np.array, root_node: TreeNode, oblique: bool =False):
         
+        """
+            This method is for building the sets of indexes of the data points 
+            that reach each node in a classification tree rooted at node root_node
+
+            Parameters:
+
+                :param: data: Train data
+                :param: idxs: the indexes of the data points to be used for building the tree
+                :param: root_node: the root node of the decision tree
+                :param: oblique: a boolean value that specifies whether the decision tree is oblique (i.e., has split planes that are not aligned with the feature axes)
+
+        """
         #First empty each previous index set for each node
         stack = [root_node]
         while(stack):
@@ -397,10 +511,20 @@ class ClassificationTree:
 
 
 
-    #Starting from the node 'root_node', the method returns the list of the nodes which
-    #the point x follows to arrive at a leaf
+    
     @staticmethod
-    def get_path_to(x, root_node, oblique):
+    def get_path_to(x: np.array, root_node: TreeNode, oblique: bool):
+
+        """
+            Starting from the node 'root_node', the method returns the list of the nodes which
+            the point x follows to arrive at a leaf.
+
+            Parameters:
+
+                :param: x: The point of which you want to know the path in the tree.
+                :param: root_node: The root node of the tree.
+                :param: oblique: Wheter the tree is axis-aligned or oblique
+        """
 
         #Start from the node 
         actual_node = root_node
@@ -436,10 +560,21 @@ class ClassificationTree:
         return path
 
 
-    #Compute the loss of the logistic tree as the summation of the log_loss
-    #and the regularization penalty
-    def compute_log_loss(self, X, y, regularizer = 1):
+    
+    def compute_log_loss(self, X:np.array, y:np.array, regularizer:int = 1):
         
+        """
+            Compute the loss of the logistic tree as the summation of the log_loss
+            and the regularization penalty.
+
+            Parameters:
+
+                :param: X: The train set
+                :param: y: The array of the labels (-1, 1)
+                :param: regularizer: An int that specify which norm has to be taken into account for the regularization term
+
+        """
+
         log_loss = 0
         reg_loss = 0
 
