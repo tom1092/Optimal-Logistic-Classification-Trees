@@ -477,7 +477,7 @@ class ClassificationTree:
                             ))
 
 
-    #Build the sets of the indexes of the data points that reach each node in the tree
+   
     def build_idxs_of_subtree(self, data: np.array, idxs: np.array, root_node: TreeNode, oblique: bool =False):
         
         """
@@ -608,10 +608,24 @@ class ClassificationTree:
     
 
 
-    #Perform a refinement of the last branching layer for logistic classification trees
-    def refine_last_branch_layer(self, X, y, parallel = False):
     
-        #search for each last branch
+    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False):
+        
+
+        """
+            Perform a refinement of the last branching layer for logistic classification trees.
+            Using the logistic loss.
+
+            Parameters:
+
+                :param: X: Train data
+                :param: y: Label data
+                :param: parallel: wheter the tree is axis-aligned or not
+
+
+        """
+
+        #Search for each last branch
         stack = [self.tree[0]]
         last_branches = []
         while (stack):
@@ -653,11 +667,19 @@ class ClassificationTree:
 
 
 
-    #Get the predicted label for the point x in the case of 'decisor' classification trees
-    #i.e. in these structures the prediction is made by the last branch node rather than the leaf
+    
     @staticmethod
-    def get_label_decisor_trees(x, root_node):
+    def get_label_decisor_trees(x: np.array, root_node: TreeNode):
+        """
+            Get the predicted label for the point x in the case of 'decisor' classification trees
+            i.e. in these structures the prediction is made by the last branch node rather than the leaf
 
+            Parameters:
+
+                :param: x: the point you want to get the label.
+                :param: root_node: The root node of the structure
+
+        """
         actual_node = root_node
         pred = actual_node.value
         while(not actual_node.is_leaf):
@@ -674,9 +696,26 @@ class ClassificationTree:
         return pred
 
 
-    #Predice la label degli elementi data nel sottoalbero con radice root_node
+
+    
     @staticmethod
-    def predict_label(data, root_node, oblique, decisor=False):
+    def predict_label(data: np.array, 
+                      root_node: TreeNode, 
+                      oblique: bool, 
+                      decisor=False):
+
+        """
+            Get the label predicted by the tree structure rooted at root_node
+            for each point in data.
+
+            Paramaters:
+
+                :param: data: The data you want to predict.
+                :param: root_node: The root node of the structure
+                :param: oblique: If the structure performs oblique splits
+                :param: decisor: Wheter the tree is made with linear classifiers at each branch node (SVM or Logistic Trees)
+
+        """
 
         if decisor:
             predictions = [ClassificationTree.get_label_decisor_trees(x, root_node) for x in data[:,]]
@@ -687,17 +726,47 @@ class ClassificationTree:
 
 
 
-    #Restituisce id della foglia del sottoalbero con radice in root_node che predice x
+   
     @staticmethod
-    def predict_leaf(x, root_node, oblique):
+    def predict_leaf(x: np.array, root_node: TreeNode, oblique: bool):
+
+        """
+            Returns the id of the leaf on which the point x fall.
+
+            Parameters:
+
+                :param: x: The point you want to predict.
+                :param: root_node: The TreeNode object that is the root of the structure.
+                :param: oblique: Wheter the tree performs oblique splits. 
+        """
         path = ClassificationTree.get_path_to(x, root_node, oblique)
         return path[-1].id
 
 
 
-    #Restituisce la loss del sottoalbero con radice in root_node
+   
     @staticmethod
-    def misclassification_loss(root_node, data, target, indexes, oblique=False, decisor = False):
+    def misclassification_loss(root_node: TreeNode, 
+                               data: np.array, 
+                               target: np.array, 
+                               indexes: np.array, 
+                               oblique: bool =False, 
+                               decisor: bool = False):
+
+        """
+            Get the misclassification loss of the subtree rooted at root_node on data respect to the targets.py
+
+            Parameters:
+
+                :param: root_node: The TreeNode object that is the root of the tree.
+                :param: data: Data of which you want to compute the misclassification loss.
+                :param: target: Labels
+                :param: indexes: Is the array of indexes of data of the points you want to compute the misclassification loss
+                :param: oblique: Wheter the tree performs oblique splits
+                :param: decisor: Wheter the tree is a decisior tree
+
+        """
+
         if len(indexes) > 0:
             preds = ClassificationTree.predict_label(data[indexes], root_node, oblique, decisor)
             n_misclassified = np.count_nonzero(target[indexes]-preds)
@@ -707,9 +776,22 @@ class ClassificationTree:
 
 
 
-    #Restore the dictionary structure of the tree using a DFS
+    
     @staticmethod
-    def restore_tree(tree, X, y):
+    def restore_tree(tree: ClassificationTree, X: np.array, y: np.array):
+
+        """
+            Restore the dictionary structure of the tree using a DFS
+
+
+            Parameters:
+
+                :param: tree: The ClassificationTree object that has to be restored.
+                :param: X: Train data.
+                :param: y: labels.
+
+
+        """
         T = tree.tree
         root_node = T[0]
         T.clear()
@@ -745,9 +827,18 @@ class ClassificationTree:
         
     
 
-    #Get leaves and branch nodes
+    
     @staticmethod
-    def get_leaves_and_branches(root):
+    def get_leaves_and_branches(root: TreeNode):
+
+        """
+            Get leaves and branch nodes of the tree rooted at root
+
+            Parameters:
+
+                :param: root: TreeNode object which is the root of the tree
+
+        """
         leaves = []
         branches = []
         stack = [root]
@@ -764,8 +855,18 @@ class ClassificationTree:
 
 
 
-    #Compute the positive probabilities for each leaf
-    def compute_prob(self, X, labels):
+    
+    def compute_prob(self, X: np.array, labels: np.array):
+
+        """
+            Compute the positive probabilities for each leaf
+
+            Parameters:
+
+                :param: X: Train data.
+                :param: labels: Array of the labels
+        """
+
         root = self.tree[0]
         stack = [root]
         while stack:
@@ -781,7 +882,15 @@ class ClassificationTree:
 
 
 
-    #Get the prob to be predicted as positive for the given point
-    def predict_prob(self, point):
+    
+    def predict_prob(self, point: np.array):
+        """
+            Get the prob to be predicted as positive for the given point
+
+            Parameters:
+
+                :param: point: The point to be predicted.
+                
+        """
         leaf = self.tree[self.predict_leaf(point, self.tree[0], self.oblique)]
         return leaf.prob
