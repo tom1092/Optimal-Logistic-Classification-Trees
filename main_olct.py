@@ -19,8 +19,34 @@ from sklearn.metrics import balanced_accuracy_score
 
 class OLCTModel(BaseEstimator):
 
-    def __init__(self, alpha_0=1, alpha_1 = 1, Nmin = 1, max_depth = 3, time_limit = 100, n_jobs = -1, v = 'v0'):
-        self.Nmin=Nmin
+    def __init__(self, alpha_0: float =1, alpha_1: float  = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1, v : str = 'v0'):
+
+        """
+        Initialize OLCT model instance with given parameters.
+        
+        :param: alpha_0: float, default=1
+            Regularization parameter for weights of branch layers at depth 0.
+        
+        :param: alpha_1: float, default=1
+            Regularization parameter for weights of branch layers at depth 1.
+        
+        :param: max_depth: int, default=2
+            Maximum depth allowed for the decision stump tree.
+        
+        :param: time_limit: int, default=100
+            Time limit in seconds for the optimization of model with Gurobi.
+        
+        :param: n_jobs: int, default=-1
+            Number of CPU cores to be used for parallelizing the optimization with Gurobi.
+        
+        :param: v: str, default='v0'
+            Which set of points to use for building the linear underapprossimation of log_loss
+            from:
+            Sato, Toshiki, et al. 
+            "Feature subset selection for logistic regression via mixed integer optimization." 
+            Computational Optimization and Applications 64 (2016): 865-880.
+        """
+
         self.mio_tree = None
         self.alpha_0 = alpha_0
         self.alpha_1 = alpha_1
@@ -31,14 +57,52 @@ class OLCTModel(BaseEstimator):
         self.v = v
     
     
-    def logistic_loss(self, v):
+    def logistic_loss(self, v : np.array) -> np.array:
+        """
+        Compute the logistic loss of the given array.
+        
+        :param: v: np.array
+            Input array to compute logistic loss on.
+        
+        :return: np.array
+            Computed logistic loss of the given array.
+        """
+
         return np.log(1+np.exp(-np.array(v)))
 
-    def logistic_loss_derivative(self, v):
+    def logistic_loss_derivative(self, v : np.array) -> np.array:
+
+        """
+        Compute the derivative of the logistic loss function for the given array.
+        
+        :param v: np.array
+            Input array to compute derivative of logistic loss function on.
+        
+        :return: np.array
+            Computed derivative of logistic loss function for the given array.
+        """
+
         return -1/(1+np.exp(np.array(v)))
 
-    def fit(self, X=None, y=None, debug = False):
+
+    def fit(self, X: np.array =None, y: np.array =None, debug : bool = False):
         
+
+        """
+        Fits the model to the given training data using the MIP binary logistic regression tree with regularization.
+
+        :param X: A numpy array of shape (n_samples, n_features) containing the input features of the training data.
+        :type X: np.array
+
+        :param y: A numpy array of shape (n_samples,) containing the target labels of the training data.
+        :type y: np.array
+
+        :param debug: Whether to print debug messages during fitting. Defaults to False.
+        :type debug: bool
+
+        :return: None
+
+        """
         
         self.model = Model()
         warm_start = True
@@ -284,14 +348,65 @@ class OLCTModel(BaseEstimator):
         
 
 
-    def score(self, X, y):
+    def score(self, X: np.array, y: np.array) -> float:
+        """
+        Returns the score of the trained ClassificationTree model on the input data.
+
+        Parameters:
+
+        :param: X : np.array
+            The input feature matrix of shape (n_samples, n_features).
+        :param: y : np.array
+            The true class labels for the input data of shape (n_samples,).
+
+        Returns:
+
+        score : float
+            The score of the trained model on the input data, computed as 1 minus the misclassification loss.
+
+        """
         return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), margin = True, oblique=True)
 
-    def predict(self, X):
+    def predict(self, X: np.array) -> np.array:
+
+        """
+        Returns the predicted class labels for the input data using the trained ClassificationTree model.
+
+        Parameters:
+       
+        :param: X : np.array
+            The input feature matrix of shape (n_samples, n_features).
+
+        Returns:
+        
+        :param: y_pred : np.array
+            The predicted class labels for the input data of shape (n_samples,).
+
+        """
+
         return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, margin = True)
 
-    def validate(self, X, y):
+    def validate(self, X: np.array, y: np.array) -> tuple:
 
+        """
+        Performs cross-validation with 4 folds on the input data and returns the best hyperparameters and the corresponding
+        trained model.
+
+        Parameters:
+        
+        :param: X : np.array
+            The input feature matrix of shape (n_samples, n_features).
+        :param: y : np.array
+            The true class labels for the input data of shape (n_samples,).
+
+        Returns:
+        
+        :param: best_estimator : ClassificationTree
+            The best trained model based on the cross-validation.
+        :param: best_params : dict
+            The best hyperparameters found during the cross-validation.
+
+        """
         
         param_dist = {'alpha_0': [1e-02,  1e-01, 1, 1e01, 1e02], 'alpha_1': [1e-02, 1e-01, 1, 1e01, 1e02]}
         print(self.n_jobs)
@@ -309,7 +424,26 @@ class OLCTModel(BaseEstimator):
 
 
 
-def get_warm_start_from_tree(tree, X, y):
+def get_warm_start_from_tree(tree: ClassificationTree, X: np.array, y: np.array) -> tuple:
+
+    """
+
+    This function takes a ClassificationTree object and training data X and y as input, 
+    and returns the weights w and intercepts b of the tree's branches as a tuple to initialize the warm-start procedure
+
+    Parameters:
+
+        :param: tree : ClassificationTree object - A trained decision tree classifier.
+        :param: X : numpy array - Input features of shape (n_samples, n_features).
+        :param: y : numpy array - Target variable of shape (n_samples,)
+
+    
+    Returns:
+
+        :return: w : numpy array - Weights of the branches in the tree. Shape is (n_features, n_branches)
+
+        :return: b : list - List of intercepts for each branch in the tree.
+    """
 
     #Get leaves and branch sets
     branches, leaves = ClassificationTree.get_leaves_and_branches(tree.tree[0])
@@ -328,8 +462,19 @@ def get_warm_start_from_tree(tree, X, y):
     return w, b
 
 
-def to_csv(filename, row):
-     with open(filename, 'a') as f:
+def to_csv(filename : str , row : list):
+
+    """
+    
+    This function takes a filename and a list of data rows as input, and appends the rows to a CSV file.
+
+    Parameters:
+    filename : str - Name of the CSV file.
+    row : list - List of data to be written to the CSV file.
+
+    """
+
+    with open(filename, 'a') as f:
         writer = csv.writer(f, delimiter=',',)
         writer.writerow(row)
 
@@ -343,6 +488,7 @@ if __name__ == '__main__':
     parser.add_argument('--validate', dest='validate', action='store_true', help="Validate the model")
     parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
     parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
+    parser.add_argument('--v', dest='v', type=str, default=0, help="Choose the set for log_loss approximation: 0, 1, 2")
     parser.add_argument('--alpha', dest='alpha', type = float, default = 1, help="Slack weight in the objective")
     args = parser.parse_args()
 
@@ -381,7 +527,7 @@ if __name__ == '__main__':
 
         
 
-        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt)
+        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v='v'+args.v)
 
         validation = args.validate
 
@@ -390,6 +536,7 @@ if __name__ == '__main__':
         else:
             best_mio = mio_model.fit(X, 2*y - 1, debug = args.debug)
             best_mio = mio_model
+
 
         olct_gaps.append(best_mio.model.MIPGap)
         olct_runtimes.append(best_mio.model.Runtime)
@@ -438,11 +585,11 @@ if __name__ == '__main__':
 
 
 
-    print("OCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
-    print("OCT Test: ", np.mean(olct_tests), " +- ", np.std(olct_tests))
-    print("OCT gaps: ", np.mean(olct_gaps), " +- ", np.std(olct_gaps))
-    print("OCT times: ", np.mean(olct_runtimes), " +- ", np.std(olct_runtimes))
-    print("OCT mean number of weights per branch node: ", np.mean(olct_n_weights), " +- ", np.std(olct_n_weights))
+    print("OLCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
+    print("OLCT Test: ", np.mean(olct_tests), " +- ", np.std(olct_tests))
+    print("OLCT gaps: ", np.mean(olct_gaps), " +- ", np.std(olct_gaps))
+    print("OLCT times: ", np.mean(olct_runtimes), " +- ", np.std(olct_runtimes))
+    print("OLCT mean number of weights per branch node: ", np.mean(olct_n_weights), " +- ", np.std(olct_n_weights))
 
     result_line = []
 
