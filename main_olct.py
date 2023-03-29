@@ -365,7 +365,7 @@ class OLCTModel(BaseEstimator):
             The score of the trained model on the input data, computed as 1 minus the misclassification loss.
 
         """
-        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), margin = True, oblique=True)
+        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), decisor = True, oblique=True)
 
     def predict(self, X: np.array) -> np.array:
 
@@ -384,7 +384,7 @@ class OLCTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, margin = True)
+        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = True)
 
     def validate(self, X: np.array, y: np.array) -> tuple:
 

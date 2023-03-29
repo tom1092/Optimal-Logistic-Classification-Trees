@@ -1,5 +1,4 @@
 import numpy as np
-
 from sklearn.datasets import make_blobs
 import seaborn as sb
 import matplotlib.pyplot as plt
@@ -69,7 +68,7 @@ class GreedyDecisionTree(BaseEstimator):
 
         self.tree = ClassificationTree(oblique = oblique)
 
-        self.tree.initialize(X, y, root)
+        self.tree.initialize(X, root)
 
         ClassificationTree.restore_tree(self.tree, X, y)
 
@@ -363,7 +362,7 @@ class GreedyDecisionTree(BaseEstimator):
                 n.is_leaf = True
             else:
                 
-                #Create oblique split
+                #Create axis-aligned split with gini
                 if self.split_strategy == 'gini':
 
                 #SET node attributes to the best
@@ -408,7 +407,8 @@ class GreedyDecisionTree(BaseEstimator):
 
                 #If you have enough points on the children then you have to split
                 if (len(indexes_left) >= self.min_samples_leaf and len(indexes_right) >= self.min_samples_leaf):
-
+                    
+                    
                     n.is_leaf = False
                     #Create two children
                     n_left = TreeNode(key+1, depth+1)
@@ -418,10 +418,9 @@ class GreedyDecisionTree(BaseEstimator):
                     n_left.data_idxs = indexes_left
                     n_right.data_idxs = indexes_right
                     key = key + 2
-
                     #Set the father
                     n.left_node = n_left
-                    n.right_node= n_right
+                    n.right_node = n_right
                     n.left_node_id = n_left.id
                     n.right_node_id = n_right.id
 

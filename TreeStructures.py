@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sklearn.tree import DecisionTreeClassifier
 from sklearn import tree
 from sklearn.utils import class_weight
@@ -7,12 +8,11 @@ from sklearn.linear_model import LogisticRegression
 
 class TreeNode:
 
-    def __init__(self, id: int, 
+    def __init__(self, 
+                 id: int, 
                  depth: int, 
                  left_node_id: int = None , 
                  right_node_id: int = None, 
-                 left_node: TreeNode = None, 
-                 right_node: TreeNode = None, 
                  feature: int = None, 
                  threshold: float = None, 
                  is_leaf: bool = None, 
@@ -29,8 +29,6 @@ class TreeNode:
             :param: depth (int): The depth of the node in the tree.
             :param: left_node_id (int): The unique identifier of the left child node. Default is None.
             :param: right_node_id (int): The unique identifier of the right child node. Default is None.
-            :param: left_node (TreeNode): The left child node. Default is None.
-            :param: right_node (TreeNode): The right child node. Default is None.
             :param: feature (int): The index of the feature used for splitting the node for axis-aligned CT. Default is None.
             :param: threshold (float): The threshold value used for splitting the node. Default is None.
             :param: is_leaf (bool): Whether the node is a leaf node or not. Default is None.
@@ -63,8 +61,8 @@ class TreeNode:
         self.depth = depth
         self.left_node_id = left_node_id
         self.right_node_id = right_node_id
-        self.left_node = left_node
-        self.right_node = right_node
+        self.left_node = None
+        self.right_node = None
         self.feature = feature
         self.threshold = threshold
         self.is_leaf = is_leaf
@@ -83,6 +81,27 @@ class TreeNode:
         self.prob = None
         self.impurity = None
 
+    @staticmethod
+    def copy_node(node: TreeNode) -> TreeNode:
+        """
+            Given a TreeNode object it returns a new TreeNode with the same attributes.
+            
+            Parameters:
+                :param: node (TreeNode): The node you want to copy.
+                
+            Returns:
+                return: object (TreeNode): The new copy of the given object.
+        """
+        new = TreeNode(node.id, node.depth, node.left_node_id, node.right_node_id, node.feature, node.threshold, node.is_leaf, node.value)
+        new.parent_id = node.parent_id
+        new.data_idxs = node.data_idxs
+        new.impurity = node.impurity
+        new.weights = node.weights
+        new.intercept = node.intercept
+        new.w = node.w
+        new.left_node = node.left_node
+        new.right_node = node.right_node
+        return new
 
 
 
@@ -168,6 +187,7 @@ class ClassificationTree:
             if not n.is_leaf:
                 self.tree[n.id].left_node_id = n.left_node.id
                 self.tree[n.id].right_node_id = n.right_node.id
+
                 stack.append(n.right_node)
                 stack.append(n.left_node)
             else:
@@ -702,7 +722,7 @@ class ClassificationTree:
     def predict_label(data: np.array, 
                       root_node: TreeNode, 
                       oblique: bool, 
-                      decisor=False):
+                      decisor: bool =False):
 
         """
             Get the label predicted by the tree structure rooted at root_node
