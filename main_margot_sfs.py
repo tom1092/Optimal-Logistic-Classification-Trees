@@ -9,7 +9,6 @@ from sklearn.base import BaseEstimator
 from scipy.stats import loguniform
 from sklearn.datasets import load_svmlight_file
 from TreeStructures import ClassificationTree
-from local_optimizers import TAO
 from itertools import product
 import argparse
 import csv
