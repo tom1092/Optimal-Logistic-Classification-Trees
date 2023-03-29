@@ -1,0 +1,471 @@
+import numpy as np
+from gurobipy import *
+from sklearn.datasets import load_wine, load_breast_cancer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from sklearn.base import BaseEstimator
+from scipy.stats import loguniform
+from sklearn.datasets import load_svmlight_file
+from TreeStructures import ClassificationTree
+from itertools import product
+import argparse
+import csv
+from dt_greedy_growing import GreedyDecisionTree
+from sklearn.metrics import balanced_accuracy_score
+
+
+
+class OLCTModel(BaseEstimator):
+
+    def __init__(self, alpha_0=1, alpha_1 = 1, Nmin = 1, max_depth = 3, time_limit = 100, n_jobs = -1, v = 'v0'):
+        self.Nmin=Nmin
+        self.mio_tree = None
+        self.alpha_0 = alpha_0
+        self.alpha_1 = alpha_1
+        self.max_depth = max_depth
+        self.time_limit = time_limit
+        self.mean_n_weights = 0
+        self.n_jobs = n_jobs
+        self.v = v
+    
+    
+    def logistic_loss(self, v):
+        return np.log(1+np.exp(-np.array(v)))
+
+    def logistic_loss_derivative(self, v):
+        return -1/(1+np.exp(np.array(v)))
+
+    def fit(self, X=None, y=None, debug = False):
+        
+        
+        self.model = Model()
+        warm_start = True
+
+
+        N = len(y)
+        min = np.inf
+
+        eps = 1e-05
+        M = 1e02
+        
+        #Mantaining the point 1e02 is equal to build an horizontal underestimator at level 0
+        #This point can be removed as the constraint is equally imposed by the non negativity of slacks
+        v = [-1e02,  0]
+        if self.v == 'v1':
+            v.extend([-1.90, 1.90])
+        if self.v == 'v2':
+            v.extend([-0.89, 0.89, -3.55, 3.55])
+
+        f_v = self.logistic_loss(v)
+        f_i_v = self.logistic_loss_derivative(v)
+        
+        K = [i for i in range(len(v))]
+
+        if self.max_depth == 2:
+
+            #Tree structure of depth = 2. Set of branches {0,1,2}. Set of leaves {3,4,5,6}
+            T_b = [0, 1, 4]
+            T_b_l = [1, 4]
+
+
+            #Set of branches that makes the classification
+            #T_b_l = [1, 4]
+
+            
+            
+            C_r = {
+                0: [4],
+                1: [1],
+                4: [4]
+            }
+
+            C_l = {
+                0: [1],
+                1: [1],
+                4: [4]
+            }
+
+        
+
+        elif self.max_depth==3:
+
+            #Tree structure of depth = 3.
+            #Set of branches
+            T_b = [0, 1, 2, 5, 8, 9, 12]
+
+            #Set of last layer of branches
+            T_b_l = [2, 5, 9, 12]
+
+
+            
+            
+            C_r = {
+                0: [9, 12],
+                1: [5],
+                2: [2],
+                5: [5],
+                8: [12],
+                9: [9],
+                12: [12]
+            }
+
+            C_l = {
+                0: [2, 5],
+                1: [2],
+                2: [2],
+                5: [5],
+                8: [9],
+                9: [9],
+                12: [12]
+            }
+
+
+        elif self.max_depth==1:
+            #Tree structure of depth = 1. Set of branches {0,1,2}. Set of leaves {3,4,5,6}
+            T = [0, 1, 2]
+            T_b = [0]
+            T_l = [1, 2]
+
+
+            #Set of branches that makes the classification
+            T_b_l = [0]
+
+            A_r = {
+                0: [],
+                1: [],
+                2: [0]
+            }
+
+            A_l = {
+                0: [],
+                1: [0],
+                2: []
+            }
+
+            Anc = {
+                0: [],
+                1: [0],
+                2: [0],
+            }
+        
+
+
+
+
+        #Z_i_t is 1 if the point i arrive at branch t in T_b_l
+        z = self.model.addVars(list(range(len(X))), T_b_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "Z")
+
+        #Branch biases
+        b = self.model.addVars(T_b, vtype = GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "b")
+
+        #Branch weights 
+        w = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "W")
+
+        #Branch weights for 1 norm
+        w_1_0= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W10")
+
+        w_1_1= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W11")
+
+        #Branch slacks
+        e = self.model.addVars(list(range(len(X))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e")
+
+        #Branch slacks linear approx
+        e_hat = self.model.addVars(list(range(len(X))), T_b, vtype=GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e_hat")
+
+        
+        #Constraints for logistic classification
+        for i in range(len(X)):
+            for t in T_b:
+                for k in K:
+                    self.model.addConstr(e_hat[i, t] >= f_v[k] + f_i_v[k]*(y[i]*(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t]) - v[k]))
+        
+
+        #Constraints for slacks
+        for i in range(len(X)):
+            for t in T_b:
+                self.model.addConstr(e[i, t] >= e_hat[i, t] - M*(1 - quicksum(z[i, l] for l in list(set(C_l[t]).union(set(C_r[t]))))))
+
+
+        #Constraints for l1 weights
+        for j in range(len(X[0])):
+            for t in T_b:
+                self.model.addConstr(w[j, t] == w_1_0[j, t] - w_1_1[j, t])
+                
+        
+
+        #Constraints for tracking points
+        for i in range(len(X)):
+            for t in list(set(T_b) - set(T_b_l)):
+                self.model.addConstr(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t] >= eps - M*(1-quicksum(z[i, l] for l in C_r[t])))
+                self.model.addConstr(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t] <= M*(1-quicksum(z[i, l] for l in C_l[t])))
+
+        
+
+        #Each point has to arrive on exactly one leaf
+        for point_index in range(len(X)):
+            self.model.addConstr(quicksum(z[point_index, t] for t in T_b_l) == 1)
+
+
+        
+
+
+
+        f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+
+
+        self.model.setObjective(f)
+
+
+
+        if warm_start:
+
+            svm_tree = GreedyDecisionTree(min_samples_leaf = 1, max_depth = self.max_depth, split_strategy='logistic', C=1)
+            svm_tree.fit(X, y)
+
+
+            W_warm, b_warm = get_warm_start_from_tree(svm_tree.tree, X, y)
+
+            for feature, branch_index in product(range(len(X[0])), range(len(b_warm))):
+                w[feature, T_b[branch_index]].Start = W_warm[feature, branch_index]
+
+            
+            for branch_index in range(len(b_warm)):
+                b[T_b[branch_index]].Start = b_warm[branch_index]
+               
+
+
+
+        self.model.setParam("IntFeasTol", 1e-09)
+        self.model.setParam("TimeLimit", self.time_limit)
+        self.model.setParam('OutputFlag', 1)
+        self.model.setParam('Threads', self.n_jobs)
+        self.model.setParam('MIPGap', 1e-8)
+        self.model.optimize()
+
+        if self.model.ObjVal < min:
+            min = self.model.ObjVal
+        if debug:
+            for v in self.model.getVars():
+                print("Var: {}, Value: {}".format(v.varName, v.x))
+
+
+        #Create the solution tree 
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree.random_complete_initialize(len(X[0]))
+
+
+        
+        for branch_id in T_b:
+
+            mio_tree.tree[branch_id].intercept = self.model.getVarByName(f'b[{branch_id}]').x
+            weights = []
+            for j in range(len(X[0])):
+                weights.append(self.model.getVarByName(f'W[{j},{branch_id}]').x)
+
+            if branch_id == 0:
+                mio_tree.tree[branch_id].C = self.alpha_0
+            else:
+                mio_tree.tree[branch_id].C = self.alpha_1
+
+            mio_tree.tree[branch_id].weights = np.array(weights)
+            mio_tree.tree[branch_id].non_zero_weights_number = np.sum(np.abs(mio_tree.tree[branch_id].weights) > 1e-05)
+           
+
+        mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True)
+
+        branches, leaves = ClassificationTree.get_leaves_and_branches(mio_tree.tree[0])
+        
+        self.mean_n_weights = np.mean([b.non_zero_weights_number for b in branches])
+        
+        self.mio_tree = mio_tree
+
+        
+
+
+    def score(self, X, y):
+        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), margin = True, oblique=True)
+
+    def predict(self, X):
+        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, margin = True)
+
+    def validate(self, X, y):
+
+        
+        param_dist = {'alpha_0': [1e-02,  1e-01, 1, 1e01, 1e02], 'alpha_1': [1e-02, 1e-01, 1, 1e01, 1e02]}
+        print(self.n_jobs)
+       
+
+        #Cross Validation with 4 fold
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+
+        random_search.fit(X, y)
+        best_estimator = random_search.best_estimator_
+        best_params = random_search.best_params_
+
+        return best_estimator, best_params
+
+
+
+
+def get_warm_start_from_tree(tree, X, y):
+
+    #Get leaves and branch sets
+    branches, leaves = ClassificationTree.get_leaves_and_branches(tree.tree[0])
+    leaves.sort(key = lambda x: x.id)
+    branches.sort(key = lambda x: x.id)
+    
+    #SET W_j_t
+    w = np.zeros(shape = (len(X[0]), len(branches)))
+    for j in range(len(X[0])):
+        w[j, :] = [branches[i].weights[j] for i in range(len(branches))]
+
+    #SET b_t
+    b = [branch.intercept for branch in branches]
+
+
+    return w, b
+
+
+def to_csv(filename, row):
+     with open(filename, 'a') as f:
+        writer = csv.writer(f, delimiter=',',)
+        writer.writerow(row)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataset', type=str)
+    parser.add_argument('--debug', dest='debug', action='store_true', help="See variables from gurobi")
+    parser.add_argument('--time', dest='time', type=int, default=30, help="Time for gurobi solver")
+    parser.add_argument('--nt', dest='nt', type=int, default=8, help="Number of threads")
+    parser.add_argument('--validate', dest='validate', action='store_true', help="Validate the model")
+    parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
+    parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
+    parser.add_argument('--alpha', dest='alpha', type = float, default = 1, help="Slack weight in the objective")
+    args = parser.parse_args()
+
+
+    olct_trains = []
+    olct_tests = []
+    olct_gaps = []
+    olct_n_weights = []
+    olct_runtimes = []
+    olct_gaps_true_loss = []
+    for seed in [0, 42, 314, 6, 71]:
+
+        np.random.seed(seed)
+
+        print("\n"*5)
+        print("DATASET: ", args.dataset)
+        print("\n"*2)
+        print("SEED: ", seed)
+
+
+        #Dataset
+        data = np.load(args.dataset)
+        X_data = data[:, 1:]
+        y_data = data[:, 0].astype(np.int64)
+        print("Data Shape: ", X_data.shape)
+
+
+        #80/20 split
+        X, X_test, y, y_test = train_test_split(X_data, y_data, test_size=0.2, stratify=y_data)
+
+
+        #Scaling
+        scaler = StandardScaler()
+        X  = scaler.fit_transform(X)
+        X_test  = scaler.transform(X_test)
+
+        
+
+        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt)
+
+        validation = args.validate
+
+        if validation:
+            best_mio, best_params = mio_model.validate(X, 2*y - 1)
+        else:
+            best_mio = mio_model.fit(X, 2*y - 1, debug = args.debug)
+            best_mio = mio_model
+
+        olct_gaps.append(best_mio.model.MIPGap)
+        olct_runtimes.append(best_mio.model.Runtime)
+        olct_n_weights.append(best_mio.mean_n_weights)
+
+
+        mio_tree = best_mio.mio_tree
+        train_acc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
+        test_acc = 100*balanced_accuracy_score(2*y_test- 1, best_mio.predict(X_test))
+
+        log_loss, reg_loss = mio_tree.compute_log_loss(X, 2*y -1)
+
+        print("Log loss true: ", log_loss)
+        print("Regularization loss true: ", reg_loss)
+        print("True loss: ", log_loss + reg_loss)
+        print("Gurobi loss: ", best_mio.model.objVal)
+
+        olct_trains.append(train_acc)
+        olct_tests.append(test_acc)
+        
+
+        result_line = []
+        dataset = args.dataset.split('/')[-1]
+        shape = str(X_data.shape[0])+" $\times$ "+str(X_data.shape[1])
+        result_line.append(dataset)
+        result_line.append(str(seed))
+
+        result_line.append(str(round(test_acc, 2)))
+        result_line.append(str(round(best_mio.model.MIPGap * 1e02, 2)))
+        result_line.append(str(round(best_mio.model.Runtime, 2)))
+
+        result_line.append(str(round(best_mio.mean_n_weights, 2)))
+        olct_gaps_true_loss.append((log_loss + reg_loss - best_mio.model.objVal) *100 / (best_mio.model.objVal))
+
+        to_csv(args.out_file, result_line)
+
+
+        print("\n"*3)
+        print("**************OLCT****************")
+        if validation:
+            print("Best Params: ", best_params)
+        print("Train acc on tree structure after gurobi: ", train_acc)
+        print("Test acc on tree structure after gurobi: ", test_acc)
+        mio_tree.print_tree_structure()
+        print("\n"*3)
+
+
+
+    print("OCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
+    print("OCT Test: ", np.mean(olct_tests), " +- ", np.std(olct_tests))
+    print("OCT gaps: ", np.mean(olct_gaps), " +- ", np.std(olct_gaps))
+    print("OCT times: ", np.mean(olct_runtimes), " +- ", np.std(olct_runtimes))
+    print("OCT mean number of weights per branch node: ", np.mean(olct_n_weights), " +- ", np.std(olct_n_weights))
+
+    result_line = []
+
+    dataset = args.dataset.split('/')[-1]
+    shape = str(X_data.shape[0])+" $\times$ "+str(X_data.shape[1])
+    result_line.append(dataset)
+
+    result_line.append(str(round(np.mean(olct_trains), 2)) + " $\pm$ "+str(round(np.std(olct_trains), 2)))
+    result_line.append(str(round(np.mean(olct_tests), 2)) + " $\pm$ "+str(round(np.std(olct_tests), 2)))
+    result_line.append(str(round(np.mean(olct_gaps), 2)) + " $\pm$ "+str(round(np.std(olct_gaps), 2)))
+    result_line.append(str(round(np.mean(olct_runtimes), 2)) + " $\pm$ "+str(round(np.std(olct_runtimes), 2)))
+    result_line.append(str(round(np.mean(olct_n_weights), 2)) + " $\pm$ "+str(round(np.std(olct_n_weights), 2)))
+    result_line.append(str(round(np.mean(olct_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(olct_gaps_true_loss), 2)))
+
+
+    to_csv(args.out_file, result_line)
+
+
+
+
+
+    
+
+
+
+        
