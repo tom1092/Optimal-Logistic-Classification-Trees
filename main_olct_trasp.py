@@ -55,6 +55,7 @@ class OLCTModel(BaseEstimator):
         self.time_limit = time_limit
         self.mean_n_weights = 0
         self.n_jobs = n_jobs
+        self.v = v
     
     def logistic_loss(self, v : np.array) -> np.array:
         """
@@ -594,7 +595,7 @@ if __name__ == '__main__':
         result_line.append(dataset)
         result_line.append(str(seed))
 
-        result_line.append(str(round(test_loss, 2)))
+        result_line.append(str(round(test_acc, 2)))
         result_line.append(str(round(best_mio.model.MIPGap * 1e02, 2)))
         result_line.append(str(round(best_mio.model.Runtime, 2)))
 
