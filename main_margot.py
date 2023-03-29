@@ -438,7 +438,6 @@ if __name__ == '__main__':
     margot_gaps = []
     margot_n_weights = []
     margot_runtimes = []
-    margot_gaps_true_loss = []
     for seed in [0, 42, 314, 6, 71]:
 
         np.random.seed(seed)
@@ -467,7 +466,7 @@ if __name__ == '__main__':
 
         
 
-        mio_model = MARGOTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v='v'+args.v)
+        mio_model = MARGOTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt)
 
         validation = args.validate
 
@@ -537,7 +536,6 @@ if __name__ == '__main__':
     result_line.append(str(round(np.mean(margot_gaps), 2)) + " $\pm$ "+str(round(np.std(margot_gaps), 2)))
     result_line.append(str(round(np.mean(margot_runtimes), 2)) + " $\pm$ "+str(round(np.std(margot_runtimes), 2)))
     result_line.append(str(round(np.mean(margot_n_weights), 2)) + " $\pm$ "+str(round(np.std(margot_n_weights), 2)))
-    result_line.append(str(round(np.mean(margot_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(margot_gaps_true_loss), 2)))
 
 
     to_csv(args.out_file, result_line)
