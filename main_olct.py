@@ -409,7 +409,7 @@ class OLCTModel(BaseEstimator):
         """
         
         param_dist = {'alpha_0': [1e-02,  1e-01, 1, 1e01, 1e02], 'alpha_1': [1e-02, 1e-01, 1, 1e01, 1e02]}
-        print(self.n_jobs)
+        
        
 
         #Cross Validation with 4 fold
