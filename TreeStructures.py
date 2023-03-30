@@ -733,7 +733,7 @@ class ClassificationTree:
                 :param: data: The data you want to predict.
                 :param: root_node: The root node of the structure
                 :param: oblique: If the structure performs oblique splits
-                :param: decisor: Wheter the tree is made with linear classifiers at each branch node (SVM or Logistic Trees)
+                :param: decisor: Whether the tree is made with linear classifiers at each branch node (SVM or Logistic Trees)
 
         """
 

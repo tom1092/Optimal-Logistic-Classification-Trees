@@ -285,11 +285,11 @@ class OLCTModel(BaseEstimator):
 
         if warm_start:
 
-            svm_tree = GreedyDecisionTree(min_samples_leaf = 1, max_depth = self.max_depth, split_strategy='logistic', C=1)
-            svm_tree.fit(X, y)
+            olct_tree = GreedyDecisionTree(min_samples_leaf = 1, max_depth = self.max_depth, split_strategy='logistic', C=1)
+            olct_tree.fit(X, y)
 
 
-            W_warm, b_warm = get_warm_start_from_tree(svm_tree.tree, X, y)
+            W_warm, b_warm = get_warm_start_from_tree(olct_tree.tree, X, y)
 
             for feature, branch_index in product(range(len(X[0])), range(len(b_warm))):
                 w[feature, T_b[branch_index]].Start = W_warm[feature, branch_index]

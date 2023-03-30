@@ -61,7 +61,7 @@ class GreedyDecisionTree(BaseEstimator):
 
         oblique = False
 
-        if self.split_strategy in ['svm', 'logistic']:
+        if self.split_strategy in ['svm', 'logistic', 'oct']:
             oblique = True
 
         root = self.train_tree(X, y)
@@ -320,6 +320,155 @@ class GreedyDecisionTree(BaseEstimator):
         return clf.intercept_, clf.coef_.reshape((len(X[0])),)
 
 
+    def get_best_split_oct(self, X: np.ndarray, y: np.ndarray, idxs: np.ndarray, Nmin:int) -> tuple:
+
+        """
+        Returns the intercept and coefficients for the single node OCT loss trained on the given subset of data.
+        
+        Parameters:
+            :param: X (numpy.ndarray): The input features of shape (n_samples, n_features).
+            :param: y (numpy.ndarray): The target values of shape (n_samples,).
+            :param: idxs (numpy.ndarray): The indices of the subset of data to use for training.
+            :param: Nmin (int): Minimum number of sample for each leaf.
+        
+        Returns:
+            :return: A tuple containing the intercept and coefficients of the classifier .
+
+        """
+
+        X = X[idxs]
+        y = y[idxs]
+        N = len(y)
+
+        model = Model()
+
+
+        #In this warm start setting we have to solve a subproblem of just 1 branch node and 2 leaves
+        #Thus the set of branches and leaves are just the following:
+        T_l = [1, 2]
+        T_b = [0]
+        eps = 1e-05
+        M = 1e02
+
+
+        # Binary classification K = 2
+        Y = np.zeros(shape=(len(X), 2))
+
+        for i in range(len(X)):
+            Y[i, :] = np.array([1 if y[i] == k else -1 for k in [0, 1]])
+
+
+        #A_j are the coefficients of hyperplanes for the node
+        A = model.addVars(list(range(len(X[0]))), vtype = GRB.CONTINUOUS, lb = -1, ub = 1, name = "A")
+
+        #A_tilde are the coefficients of hyperplanes for the node in abs
+        A_tilde = model.addVars(list(range(len(X[0]))), vtype = GRB.CONTINUOUS, lb = 0, ub = 1, name = "A_tilde")
+
+        #b is the intercept of the hyperplane
+        b = model.addVar(vtype = GRB.CONTINUOUS, lb = -1, ub = 1, name = "b")
+
+        #Z_i_t is 1 if the point i arrive at leaf t in T_l
+        Z = model.addVars(list(range(len(X))), T_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "Z")
+
+        #Number of point of class k for each leaf (binary classification)
+        N = model.addVars([0,1], T_l, vtype = GRB.CONTINUOUS, name="N")
+
+        #Total number of points in each leaf
+        N_t = model.addVars(T_l, vtype = GRB.CONTINUOUS, name="N_t")
+
+        #c_k_t track the prediction. 1 if leaf t has label k else 0.
+        C = model.addVars([0, 1], T_l, vtype = GRB.BINARY, name="C")
+
+        #Misclassification loss for each leaf
+        L = model.addVars(T_l, vtype=GRB.CONTINUOUS, name = "L", lb=0)
+
+        #Track if the leaf t has any point
+        l = model.addVars(T_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "l")
+
+
+        #Constraints for the loss on each leaf
+        for leaf_index in T_l:
+            for k in [0, 1]:
+                model.addConstr(L[leaf_index] >= N_t[leaf_index] - N[k, leaf_index]-len(y)*(1-C[k, leaf_index]))
+                model.addConstr(L[leaf_index] <= N_t[leaf_index] - N[k, leaf_index]+len(y)*C[k, leaf_index])
+
+
+        #Total number of k class points in leaf t
+        for leaf_index in T_l:
+            for k in [0,1]:
+                model.addConstr(0.5 * quicksum(Z[i, leaf_index]*(1+Y[i, k]) for i in range(len(Y))) == N[k, leaf_index])
+
+
+        #Total number of point for each leaf constraint
+        for leaf_index in T_l:
+            model.addConstr(quicksum(Z[i, leaf_index] for i in range(len(X))) == N_t[leaf_index])
+
+        
+        #Set c_k_t to make a single class prediction
+        for leaf_index in T_l:
+            model.addConstr(quicksum(C[k, leaf_index] for k in [0, 1]) == l[leaf_index])
+
+        
+        #Constraints for tracking points
+        for i in range(len(X)):
+            model.addConstr(quicksum(A[j]*X[i, j] for j in range(len(X[0]))) + b >= eps-M*(Z[i, 1]))
+            model.addConstr(quicksum(A[j]*X[i, j] for j in range(len(X[0]))) + b <= M*(1-Z[i, 1]))       
+
+        
+
+        #Each point has to arrive on exactly one leaf
+        for point_index in range(len(X)):
+            model.addConstr(quicksum(Z[point_index, t] for t in T_l) == 1)
+
+
+
+        #Min point number on each leaf
+        for leaf_index in T_l:
+            model.addConstr(quicksum(Z[i, leaf_index] for i in range(len(X))) >= Nmin*l[leaf_index])
+
+
+
+        #Absolute value
+        for j in range(len(X[0])):
+                model.addConstr(A_tilde[j] >= A[j])
+                model.addConstr(A_tilde[j] >= -A[j])
+
+        
+        #1 norm equal to 1
+        model.addConstr(quicksum(A_tilde[f] for f in range(len(X[0]))) == 1)
+
+
+        #For each leaf t, z_i_t has to be less than l_t
+        for leaf_index in T_l:
+            for i in range(len(X)):
+                model.addConstr(Z[i, leaf_index] <= l[leaf_index])
+        
+        
+        f =  quicksum(L[t] for t in T_l)
+
+
+        model.setObjective(f)
+        model.setParam("IntFeasTol", 1e-09)
+
+        #Time limit for warm start is 30s
+        model.setParam("TimeLimit", 30)
+        model.setParam('Threads', 1)
+        model.setParam('MIPGap', 1e-8)
+        #model.setParam('OutputFlag', 0)
+        model.optimize()
+
+        #Create the solution
+        intercept = model.getVarByName(f'b').x
+        weights = np.zeros(len(X[0]))
+        for j in range(len(X[0])):
+            weights[j] = model.getVarByName(f'A[{j}]').x
+
+
+        return intercept, weights
+
+
+
+
 
     def train_tree(self, X: np.ndarray, y: np.ndarray) -> TreeNode:
 
@@ -385,6 +534,15 @@ class GreedyDecisionTree(BaseEstimator):
                 ##Create oblique split using logistic
                 elif self.split_strategy == 'logistic':
                     n.intercept, n.weights = self.get_best_split_logistic(X, y, np.array(n.data_idxs))
+
+                    #Get indexes of left and right subset
+                    indexes_left = np.array([i for i in n.data_idxs if np.dot(n.weights, X[i, :]) + n.intercept <= 0])
+                    indexes_right = np.array(list(set(n.data_idxs) - set(indexes_left)))
+
+                ##Create oblique split using OCT method
+                elif self.split_strategy == 'oct':
+
+                    n.intercept, n.weights = self.get_best_split_oct(X, y, np.array(n.data_idxs), self.min_samples_leaf)
 
                     #Get indexes of left and right subset
                     indexes_left = np.array([i for i in n.data_idxs if np.dot(n.weights, X[i, :]) + n.intercept <= 0])
