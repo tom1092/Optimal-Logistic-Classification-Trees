@@ -3,7 +3,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn import tree
 from sklearn.utils import class_weight
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import balanced_accuracy_score
 from sklearn.linear_model import LogisticRegression
 
 class TreeNode:
@@ -629,7 +629,7 @@ class ClassificationTree:
 
 
     
-    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False):
+    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric = 'loss'):
         
 
         """
@@ -640,7 +640,8 @@ class ClassificationTree:
 
                 :param: X: Train data
                 :param: y: Label data
-                :param: parallel: wheter the tree is axis-aligned or not
+                :param: parallel: Whether the tree is axis-aligned or not
+                :param: metric: The metric to use to choose the best feature for axis-aligned split (loss/bacc)
 
 
         """
@@ -661,7 +662,7 @@ class ClassificationTree:
             #If the branch contains points and it's not pure
             if (len(X[branch.data_idxs]) > 0 and len(set(y[branch.data_idxs])) > 1):
                 if not parallel:
-                    lr = LogisticRegression(penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
+                    lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
                     branch.weights = np.squeeze(lr.coef_)
                     branch.intercept = lr.intercept_
                 else:
@@ -669,14 +670,25 @@ class ClassificationTree:
                     #Get the best logistic regression model on a single feature
                     best_weights = None
                     best_loss = np.inf
+
                     #For each feature
                     for j in range(len(X[0])):
-                        lr = LogisticRegression(penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j], y[branch.data_idxs])
+                        lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j], y[branch.data_idxs])
                         weights = np.zeros(len(X[0]))
                         weights[j] = np.squeeze(lr.coef_)[0]
                         loss = 0
-                        for i in range(len(branch.data_idxs)):
-                            loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_)))
+
+                        #Best feature/threshold is the one with min log_loss
+                        if metric == 'loss':
+                            #Compute the log loss
+                            for i in range(len(branch.data_idxs)):
+                                loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_)))
+                        
+                        #Best feature/threshold is the one with min balanced accuracy error
+                        elif metric == 'bacc':
+                            y_preds = lr.predict(X[branch.data_idxs, j])
+                            loss = 1 - balanced_accuracy_score(y_preds, y[branch.data_idxs])
+
                         if loss < best_loss:
                             best_loss = loss
                             best_weights = weights
