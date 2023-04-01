@@ -673,26 +673,26 @@ class ClassificationTree:
 
                     #For each feature
                     for j in range(len(X[0])):
-                        lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j], y[branch.data_idxs])
+                        lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j].reshape((-1, 1)), y[branch.data_idxs])
                         weights = np.zeros(len(X[0]))
-                        weights[j] = np.squeeze(lr.coef_)[0]
+                        weights[j] = lr.coef_[0]
                         loss = 0
 
                         #Best feature/threshold is the one with min log_loss
                         if metric == 'loss':
                             #Compute the log loss
                             for i in range(len(branch.data_idxs)):
-                                loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_)))
+                                loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_[0])))
                         
                         #Best feature/threshold is the one with min balanced accuracy error
                         elif metric == 'bacc':
-                            y_preds = lr.predict(X[branch.data_idxs, j])
+                            y_preds = lr.predict(X[branch.data_idxs, j].reshape((-1, 1)))
                             loss = 1 - balanced_accuracy_score(y_preds, y[branch.data_idxs])
 
                         if loss < best_loss:
                             best_loss = loss
                             best_weights = weights
-                            best_intercept = lr.intercept_
+                            best_intercept = lr.intercept_[0]
 
                     branch.weights = best_weights
                     branch.intercept = best_intercept
