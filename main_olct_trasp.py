@@ -12,6 +12,7 @@ from TreeStructures import ClassificationTree
 from itertools import product
 import argparse
 import csv
+import pickle
 from dt_greedy_growing import GreedyDecisionTree
 from sklearn.metrics import balanced_accuracy_score
 
@@ -616,7 +617,9 @@ if __name__ == '__main__':
         print("\n"*3)
 
 
-        
+        if seed==0:
+            #Save the model
+            pickle.dump(mio_tree, open('olct_trasp_'+str(dataset)+'.pkl', 'wb'))        
     
 
     print("OLCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
