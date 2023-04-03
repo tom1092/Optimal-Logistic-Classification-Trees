@@ -14,6 +14,7 @@ import argparse
 import csv
 from dt_greedy_growing import GreedyDecisionTree
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
+from calibration import calibration_error
 
 
 
@@ -432,6 +433,7 @@ class OCTModel(BaseEstimator):
             if node.data_idxs:
                 best_class = np.bincount(y[node.data_idxs]).argmax()
                 node.value = best_class
+                node.pos_prob = np.count_nonzero(y[node.data_idxs])/len(node.data_idxs)
 
         self.mio_tree = mio_tree
         
@@ -596,8 +598,8 @@ if __name__ == '__main__':
     oct_n_weights = []
     oct_runtimes = []
     
-    for seed in [0, 42, 314, 6, 71]:
-    #for seed in [0]:
+    #for seed in [0, 42, 314, 6, 71]:
+    for seed in [0]:
 
         np.random.seed(seed)
 
@@ -645,6 +647,9 @@ if __name__ == '__main__':
         train_acc = 100*balanced_accuracy_score(y, best_mio.predict(X))
         test_acc = 100*balanced_accuracy_score(y_test, best_mio.predict(X_test))
 
+        y_preds_tree = mio_tree.predict_prob(points=X_test)
+        
+        print(calibration_error(y_test, y_preds_tree))
 
         print("Gurobi loss: ", best_mio.model.objVal)
 

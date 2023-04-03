@@ -78,7 +78,7 @@ class TreeNode:
         self.w = None
         self.non_zero_weights_number = -1
         self.intercept = None
-        self.prob = None
+        self.pos_prob = None
         self.impurity = None
 
     @staticmethod
@@ -305,7 +305,7 @@ class ClassificationTree:
             if (children_left[node_id] != children_right[node_id]):
                 stack.append((children_left[node_id], parent_depth + 1))
                 stack.append((children_right[node_id], parent_depth + 1))
-                self.tree[node_id] = TreeNode(node_id, node_depth[node_id], children_left[node_id], children_right[node_id], None, None, feature[node_id], threshold[node_id], False, -1)
+                self.tree[node_id] = TreeNode(node_id, node_depth[node_id], children_left[node_id], children_right[node_id], feature[node_id], threshold[node_id], False, -1)
                 if self.oblique:
                     ej = np.zeros(len(data[0]))
                     ej[feature[node_id]] = 1
@@ -313,7 +313,9 @@ class ClassificationTree:
                     self.tree[node_id].intercept = -threshold[node_id]
             else:
                 is_leaves[node_id] = True
-                self.tree[node_id] = TreeNode(node_id, node_depth[node_id], -1, -1, None, None, feature[node_id], threshold[node_id], True, np.argmax(value[node_id]))
+                self.tree[node_id] = TreeNode(node_id, node_depth[node_id], -1, -1, feature[node_id], threshold[node_id], True, np.argmax(value[node_id]))
+                self.tree[node_id].pos_prob = value[node_id][0][1]/np.sum(value[node_id])
+                #self.tree[node_id].pos_prob = value[node_id]
                 self.n_leaves += 1
 
         #Set father
@@ -481,7 +483,7 @@ class ClassificationTree:
         else:
             for i in self.tree.keys():
                 if self.tree[i].is_leaf:
-                    print("%snode=%s is child of node %s. It's a leaf node. Np: %s - Imp: %s - Value: %s" % (self.tree[i].depth * "\t", i, self.tree[i].parent_id, len(self.tree[i].data_idxs), self.tree[i].impurity, self.tree[i].value))
+                    print("%snode=%s is child of node %s. It's a leaf node. Np: %s - Imp: %s - Value: %s - PosProb: %s" % (self.tree[i].depth * "\t", i, self.tree[i].parent_id, len(self.tree[i].data_idxs), self.tree[i].impurity, self.tree[i].value, self.tree[i].pos_prob))
                 else:
                     print("%snode=%s is child of node %s. It's a test node. Np: %s - Imp: %s - Next =  %s if X[:, %s] <= %s else "
                         "%s."
@@ -871,6 +873,7 @@ class ClassificationTree:
                 :param: root: TreeNode object which is the root of the tree
 
         """
+
         leaves = []
         branches = []
         stack = [root]
@@ -915,14 +918,14 @@ class ClassificationTree:
 
 
     
-    def predict_prob(self, point: np.array):
+    def predict_prob(self, points: np.array):
         """
-            Get the prob to be predicted as positive for the given point
+            Get the prob to be predicted as positive for the given points
 
             Parameters:
 
-                :param: point: The point to be predicted.
+                :param: points: The points to be predicted shape (n_samples, n_features)
                 
         """
-        leaf = self.tree[self.predict_leaf(point, self.tree[0], self.oblique)]
-        return leaf.prob
+        probas = [self.tree[self.predict_leaf(point, self.tree[0], self.oblique)].pos_prob for point in points]
+        return probas
