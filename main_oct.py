@@ -235,10 +235,11 @@ class OCTModel(BaseEstimator):
         L_hat = min(np.count_nonzero(y), N - np.count_nonzero(y))
 
 
-        #N_min is set as 5% of total number of training samples
-        N_min = int(0.05*len(y)) 
-        # Y_i_k is 1 if x_i has class k. -1 o.w.
-        
+        #N_min is set as 5% of total number of training samples as in the original paper
+        N_min = int(0.05*len(y))
+
+ 
+        # Y_i_k is 1 if x_i has class k. -1 o.w.        
         # Binary classification K = 2
         Y = np.zeros(shape=(len(X), 2))
 
@@ -370,8 +371,8 @@ class OCTModel(BaseEstimator):
         
 
 
-        #f = 1/L_hat*quicksum(L[t] for t in T_l) + self.alpha*quicksum(S[j, t] for j in range(len(X[0])) for t in T_b)
-        f = quicksum(L[t] for t in T_l)
+        f = 1/L_hat*quicksum(L[t] for t in T_l) + self.alpha*quicksum(S[j, t] for j in range(len(X[0])) for t in T_b)
+        #f = quicksum(L[t] for t in T_l)
 
         self.model.setObjective(f)
 
@@ -598,8 +599,8 @@ if __name__ == '__main__':
     oct_n_weights = []
     oct_runtimes = []
     
-    #for seed in [0, 42, 314, 6, 71]:
-    for seed in [0]:
+    for seed in [0, 42, 314, 6, 71]:
+    #for seed in [0]:
 
         np.random.seed(seed)
 
@@ -647,9 +648,9 @@ if __name__ == '__main__':
         train_acc = 100*balanced_accuracy_score(y, best_mio.predict(X))
         test_acc = 100*balanced_accuracy_score(y_test, best_mio.predict(X_test))
 
-        y_preds_tree = mio_tree.predict_prob(points=X_test)
+        #y_preds_tree = mio_tree.predict_prob(points=X_test)
         
-        print(calibration_error(y_test, y_preds_tree))
+        #print(calibration_error(y_test, y_preds_tree))
 
         print("Gurobi loss: ", best_mio.model.objVal)
 
