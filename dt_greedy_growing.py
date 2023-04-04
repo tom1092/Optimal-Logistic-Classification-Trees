@@ -320,7 +320,7 @@ class GreedyDecisionTree(BaseEstimator):
         return clf.intercept_, clf.coef_.reshape((len(X[0])),)
 
 
-    def get_best_split_oct(self, X: np.ndarray, y: np.ndarray, idxs: np.ndarray, Nmin:int) -> tuple:
+    def get_best_split_oct(self, X: np.ndarray, y: np.ndarray, idxs: np.ndarray, Nmin:int, time:int) -> tuple:
 
         """
         Returns the intercept and coefficients for the single node OCT loss trained on the given subset of data.
@@ -330,6 +330,7 @@ class GreedyDecisionTree(BaseEstimator):
             :param: y (numpy.ndarray): The target values of shape (n_samples,).
             :param: idxs (numpy.ndarray): The indices of the subset of data to use for training.
             :param: Nmin (int): Minimum number of sample for each leaf.
+            :param: time (int): Time Limit for gurobi solver
         
         Returns:
             :return: A tuple containing the intercept and coefficients of the classifier .
@@ -450,8 +451,9 @@ class GreedyDecisionTree(BaseEstimator):
         model.setObjective(f)
         model.setParam("IntFeasTol", 1e-09)
 
-        #Time limit for warm start is 30s
-        model.setParam("TimeLimit", 30)
+        #Time limit for warm start is 30s we set each sub problem to a time limit
+        #which is equal to 30/n_branches thus 30/(2^D - 1) 
+        model.setParam("TimeLimit", time)
         model.setParam('Threads', 1)
         model.setParam('MIPGap', 1e-8)
         #model.setParam('OutputFlag', 0)
@@ -541,8 +543,12 @@ class GreedyDecisionTree(BaseEstimator):
 
                 ##Create oblique split using OCT method
                 elif self.split_strategy == 'oct':
+                    #For OCT the whole warm start phase has a duration of 30s.
+                    #This time has to be divided for each branch node to get the time for each subproblem
+                    #(Sequential setting)
 
-                    n.intercept, n.weights = self.get_best_split_oct(X, y, np.array(n.data_idxs), self.min_samples_leaf)
+                    oct_time = int(30/(2**self.max_depth - 1))
+                    n.intercept, n.weights = self.get_best_split_oct(X, y, np.array(n.data_idxs), self.min_samples_leaf, oct_time)
 
                     #Get indexes of left and right subset
                     indexes_left = np.array([i for i in n.data_idxs if np.dot(n.weights, X[i, :]) + n.intercept <= 0])
