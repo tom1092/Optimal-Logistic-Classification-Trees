@@ -12,6 +12,7 @@ from TreeStructures import ClassificationTree
 from itertools import product
 import argparse
 import csv
+import pickle
 from dt_greedy_growing import GreedyDecisionTree
 from sklearn.metrics import balanced_accuracy_score, accuracy_score
 from calibration import calibration_error
@@ -681,6 +682,10 @@ if __name__ == '__main__':
         print("Test acc on tree structure after gurobi: ", test_acc)
         mio_tree.print_tree_structure()
         print("\n"*3)
+
+        if seed==0:
+            #Save the model
+            pickle.dump(mio_tree, open('oct_'+str(dataset)+'.pkl', 'wb'))
 
 
 
