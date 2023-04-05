@@ -686,7 +686,7 @@ if __name__ == '__main__':
 
         if seed==0:
             #Save the model
-            pickle.dump(mio_tree, open('oct_'+str(dataset)+'.pkl', 'wb'))
+            pickle.dump(mio_tree, open('oct_h_'+str(dataset)+'.pkl', 'wb'))
 
 
 
