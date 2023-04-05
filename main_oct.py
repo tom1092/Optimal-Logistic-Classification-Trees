@@ -514,7 +514,7 @@ class OCTModel(BaseEstimator):
 
         """
         
-        param_dist = {'alpha': [1e-02,  1e-01, 1, 1e01, 1e02]}
+        param_dist = {'alpha': [2**(i) for i in range(-8, 3)].append(0)}
         
        
 

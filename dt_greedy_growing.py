@@ -543,10 +543,10 @@ class GreedyDecisionTree(BaseEstimator):
 
                 ##Create oblique split using OCT method
                 elif self.split_strategy == 'oct':
+
                     #For OCT the whole warm start phase has a duration of 30s.
                     #This time has to be divided for each branch node to get the time for each subproblem
                     #(Sequential setting)
-
                     oct_time = int(30/(2**self.max_depth - 1))
                     n.intercept, n.weights = self.get_best_split_oct(X, y, np.array(n.data_idxs), self.min_samples_leaf, oct_time)
 
