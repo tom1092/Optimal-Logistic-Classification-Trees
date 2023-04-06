@@ -602,8 +602,8 @@ if __name__ == '__main__':
     oct_n_weights = []
     oct_runtimes = []
     
-    #for seed in [0, 42, 314, 6, 71]:
-    for seed in [6]:
+    for seed in [0, 42, 314, 6, 71]:
+    #for seed in [6]:
 
         np.random.seed(seed)
 
