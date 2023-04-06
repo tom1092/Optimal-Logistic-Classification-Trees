@@ -81,8 +81,8 @@ if __name__ == '__main__':
     
     clf = pickle.load(open(args.model, 'rb'))
 
-    #clf.decisior = True
-    
+    #clf.decisor = True
+
     y_prob = clf.predict_proba(X_test)
     y_pred = clf.predict(X_test)
 

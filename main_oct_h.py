@@ -415,7 +415,7 @@ class OCTModel(BaseEstimator):
 
 
         #Create the solution tree 
-        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor = False)
         mio_tree.random_complete_initialize(len(X[0]))
 
         for branch_id in T_b:
@@ -427,7 +427,7 @@ class OCTModel(BaseEstimator):
             mio_tree.tree[branch_id].non_zero_weights_number = np.sum(np.abs(mio_tree.tree[branch_id].weights) > 1e-05)
 
         
-        mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True, decisor = False)
+        mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True)
 
         #Set labels on the leaves
         for leaf_id in T_l:
@@ -602,8 +602,8 @@ if __name__ == '__main__':
     oct_n_weights = []
     oct_runtimes = []
     
-    for seed in [0, 42, 314, 6, 71]:
-    #for seed in [0]:
+    #for seed in [0, 42, 314, 6, 71]:
+    for seed in [6]:
 
         np.random.seed(seed)
 

@@ -501,7 +501,7 @@ class ClassificationTree:
 
 
    
-    def build_idxs_of_subtree(self, data: np.array, idxs: np.array, root_node: TreeNode, oblique: bool =False):
+    def build_idxs_of_subtree(self, data: np.array, idxs: np.array, root_node: TreeNode, oblique: bool  = False):
         
         """
             This method is for building the sets of indexes of the data points 
