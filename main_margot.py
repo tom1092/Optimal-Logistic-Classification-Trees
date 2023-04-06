@@ -14,6 +14,7 @@ import argparse
 import csv
 from dt_greedy_growing import GreedyDecisionTree
 from sklearn.metrics import balanced_accuracy_score
+import pickle
 
 
 
@@ -254,7 +255,7 @@ class MARGOTModel(BaseEstimator):
 
         #Create the solution tree
         
-        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor=True)
         mio_tree.random_complete_initialize(len(X[0]))
 
 
@@ -321,7 +322,7 @@ class MARGOTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = True)
+        return self.mio_tree.predict(X)
 
 
     def validate(self, X: np.array, y: np.array) -> tuple:
@@ -516,6 +517,9 @@ if __name__ == '__main__':
         print("Test acc on tree structure after gurobi: ", test_acc)
         mio_tree.print_tree_structure()
         print("\n"*3)
+        if seed==0:
+            #Save the model
+            pickle.dump(mio_tree, open('margot_'+str(dataset)+'.pkl', 'wb'))
 
 
 

@@ -427,7 +427,7 @@ class OCTModel(BaseEstimator):
             mio_tree.tree[branch_id].non_zero_weights_number = np.sum(np.abs(mio_tree.tree[branch_id].weights) > 1e-05)
 
         
-        mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True)
+        mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True, decisor = False)
 
         #Set labels on the leaves
         for leaf_id in T_l:
@@ -490,7 +490,7 @@ class OCTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = False)
+        return self.mio_tree.predict(X)
 
     def validate(self, X: np.array, y: np.array) -> tuple:
 

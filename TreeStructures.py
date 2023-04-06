@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.linear_model import LogisticRegression
 
+
 class TreeNode:
 
     def __init__(self, 
@@ -383,7 +384,7 @@ class ClassificationTree:
     def predict_data(self, data: np.array, root: TreeNode):
 
         """
-            Return the np array of predicstions for each sample in data starting from the node 'root'.
+            Return the np array of predictions for each sample in data starting from the node 'root'.
 
             Parameters:
 
@@ -713,30 +714,32 @@ class ClassificationTree:
                 :param: x: the point you want to get the label.
                 :param: root_node: The root node of the structure
 
+
+            Returns:
+                :return: The predicted label for the point x
+                :return: The associated score
+
         """
         actual_node = root_node
         pred = actual_node.value
         while(not actual_node.is_leaf):
             weights = actual_node.weights
             intercept = actual_node.intercept
-
-            if np.dot(x, weights) + intercept <= 0:
+            score = np.dot(x, weights) + intercept
+            if score <= 0:
                 pred = -1
                 actual_node = actual_node.left_node
             else:
                 pred = 1
                 actual_node = actual_node.right_node
 
-        return pred
+        return pred, score
 
 
 
     
-    @staticmethod
-    def predict_label(data: np.array, 
-                      root_node: TreeNode, 
-                      oblique: bool, 
-                      decisor: bool =False):
+    
+    def predict(self, data: np.array):
 
         """
             Get the label predicted by the tree structure rooted at root_node
@@ -745,20 +748,51 @@ class ClassificationTree:
             Paramaters:
 
                 :param: data: The data you want to predict.
-                :param: root_node: The root node of the structure
-                :param: oblique: If the structure performs oblique splits
-                :param: decisor: Whether the tree is made with linear classifiers at each branch node (SVM or Logistic Trees)
+            
+            Returns:
+
+                :return: The predicted labels for each point in data
 
         """
 
-        if decisor:
-            predictions = [ClassificationTree.get_label_decisor_trees(x, root_node) for x in data[:,]]
+        if self.decisor:
+            predictions = [self.get_label_decisor_trees(x, self.tree[0])[0] for x in data[:,]]
         else:
-            predictions = [root_node.value if root_node.is_leaf else ClassificationTree.get_path_to(x, root_node, oblique)[-1].value for x in data[:,]]
+
+            predictions = [self.get_path_to(x, self.tree[0], self.oblique)[-1].value for x in data[:,]]
             predictions = [predictions[i] if predictions[i]!=None else 0 for i in range(len(predictions))]
         return predictions
 
 
+    
+    def predict_proba(self, data: np.array, type = 'logistic'):
+
+        """
+            Get the prob to be predicted as positive for the given points
+
+            Parameters:
+
+                :param: data: The points to be predicted shape (n_samples, n_features)
+                :param: type: How to compute the prob. 'logistic' for logistic regression, 'leaf' for the leaf prob, svm to normalize the score with the svm loss
+
+            Returns:
+                
+                :return: The prob to be predicted as positive for the given points
+                
+        """
+
+        if self.decisor:
+            if type == 'logistic':
+                probas = [1/(1+np.exp(-self.get_label_decisor_trees(x, self.tree[0])[1])) for x in data[:,]]
+            elif type == 'svm':
+                scores = [self.get_label_decisor_trees(x, self.tree[0])[1] for x in data[:,]]
+                minimum = np.min(scores)
+                maximum = np.max(scores)
+                probas = (scores-minimum)/(maximum-minimum)
+
+        else:
+            probas = [self.tree[self.predict_leaf(point, self.tree[0], self.oblique)].pos_prob for point in data]
+        return probas
 
    
     @staticmethod
@@ -918,14 +952,3 @@ class ClassificationTree:
 
 
     
-    def predict_prob(self, points: np.array):
-        """
-            Get the prob to be predicted as positive for the given points
-
-            Parameters:
-
-                :param: points: The points to be predicted shape (n_samples, n_features)
-                
-        """
-        probas = [self.tree[self.predict_leaf(point, self.tree[0], self.oblique)].pos_prob for point in points]
-        return probas

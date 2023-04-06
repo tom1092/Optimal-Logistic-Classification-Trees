@@ -399,7 +399,7 @@ class OCTModel(BaseEstimator):
 
 
         #Create the solution tree 
-        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor=False)
         mio_tree.random_complete_initialize(len(X[0]))
 
         for branch_id in T_b:
@@ -474,7 +474,7 @@ class OCTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = False)
+        return self.mio_tree.predict(X)
 
     def validate(self, X: np.array, y: np.array) -> tuple:
 

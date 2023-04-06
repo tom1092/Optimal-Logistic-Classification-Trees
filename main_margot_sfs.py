@@ -14,6 +14,7 @@ import argparse
 import csv
 from dt_greedy_growing import GreedyDecisionTree
 from sklearn.metrics import balanced_accuracy_score
+import pickle
 
 
 
@@ -276,7 +277,7 @@ class SFSMARGOTModel(BaseEstimator):
 
         #Create the solution tree
         
-        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor=True)
         mio_tree.random_complete_initialize(len(X[0]))
 
 
@@ -342,7 +343,7 @@ class SFSMARGOTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = True)
+        return self.mio_tree.predict(X)
     
 
 
@@ -543,6 +544,9 @@ if __name__ == '__main__':
         mio_tree.print_tree_structure()
         print("\n"*3)
 
+        if seed==0:
+            #Save the model
+            pickle.dump(mio_tree, open('margot_sfs_'+str(dataset)+'.pkl', 'wb'))
 
 
     print("SFS-MARGOT Train: ", np.mean(sfs_margot_trains), " +- ", np.std(sfs_margot_trains))

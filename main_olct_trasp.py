@@ -333,7 +333,7 @@ class OLCTModel(BaseEstimator):
        
         #Create the solution tree
         
-        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True)
+        mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor=True)
         mio_tree.random_complete_initialize(len(X[0]))
 
 
@@ -386,7 +386,7 @@ class OLCTModel(BaseEstimator):
             The score of the trained model on the input data, computed as 1 minus the misclassification loss.
 
         """
-        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), decisor = True, oblique=True)
+        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)))
 
     def predict(self, X: np.array) -> np.array:
 
@@ -405,7 +405,7 @@ class OLCTModel(BaseEstimator):
 
         """
 
-        return ClassificationTree.predict_label(X, self.mio_tree.tree[0], oblique = True, decisor = True)
+        return self.mio_tree.predict(X)
     
 
 
