@@ -89,7 +89,7 @@ if __name__ == '__main__':
         #print(prob_true_b)
         #print(prob_pred_b)
 
-
+            
         svm = SVC(kernel = 'linear')
         svm.fit(X, y)
         y_preds_svm = svm.decision_function(X_test)

@@ -24,7 +24,7 @@ class OLCTModel(BaseEstimator):
         
 
         """
-        Initialize OLCT model instance with given parameters.
+        Initialize T-OLCT model instance with given parameters.
         
         :param: alpha_0: float, default=1
             Regularization parameter for weights of branch layers at depth 0.

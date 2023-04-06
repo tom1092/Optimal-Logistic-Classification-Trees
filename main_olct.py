@@ -45,6 +45,7 @@ class OLCTModel(BaseEstimator):
             Sato, Toshiki, et al. 
             "Feature subset selection for logistic regression via mixed integer optimization." 
             Computational Optimization and Applications 64 (2016): 865-880.
+            
         """
 
         self.mio_tree = None

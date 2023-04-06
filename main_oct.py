@@ -24,7 +24,7 @@ class OCTModel(BaseEstimator):
     def __init__(self, alpha: float = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1):
 
         """
-        Initialize OCT model  (Bertsimas 2017) for oblique trees with given parameters.
+        Initialize OCT model  (Bertsimas 2017) for axis-aligned trees with given parameters.
 
         From original paper: 
 
@@ -338,24 +338,8 @@ class OCTModel(BaseEstimator):
 
         #For each branch, the node has to split on maximum d features
         for branch_index in T_b:
-            self.model.addConstr(quicksum(A_tilde[f, branch_index] for f in range(len(X[0]))) <= d[branch_index])
+            self.model.addConstr(quicksum(A[f, branch_index] for f in range(len(X[0]))) == d[branch_index])
 
-
-        #Get absolute values
-        for branch_index in T_b:
-            for j in range(len(X[0])):
-                self.model.addConstr(A_tilde[j, branch_index] >= A[j, branch_index])
-                self.model.addConstr(A_tilde[j, branch_index] >= -A[j, branch_index])
-                self.model.addConstr(A[j, branch_index] >= -S[j, branch_index])
-                self.model.addConstr(A[j, branch_index] <= S[j, branch_index])
-                self.model.addConstr(S[j, branch_index] <= d[branch_index])
-
-
-
-
-        
-        for branch_index in T_b:
-            self.model.addConstr(quicksum(S[j, branch_index] for j in range(len(X[0]))) >= d[branch_index])
 
 
         #Tree structure: If the node t splits, then also all the ancestors have to split   
@@ -368,12 +352,12 @@ class OCTModel(BaseEstimator):
         #The threshold b_t has to be box constr in [-d_t, d_t]
         for branch_index in T_b:
             self.model.addConstr(b[branch_index] <= d[branch_index])
-            self.model.addConstr(b[branch_index] >= -d[branch_index])
+            self.model.addConstr(b[branch_index] >= 0)
         
 
 
-        f = 1/L_hat*quicksum(L[t] for t in T_l) + self.alpha*quicksum(S[j, t] for j in range(len(X[0])) for t in T_b)
-        #f = quicksum(L[t] for t in T_l)
+        f = 1/L_hat*quicksum(L[t] for t in T_l) + self.alpha*quicksum(d[t] for t in T_b)
+        
 
         self.model.setObjective(f)
 
@@ -651,7 +635,9 @@ if __name__ == '__main__':
         train_acc = 100*balanced_accuracy_score(y, best_mio.predict(X))
         test_acc = 100*balanced_accuracy_score(y_test, best_mio.predict(X_test))
 
+        #y_preds_tree = mio_tree.predict_prob(points=X_test)
         
+        #print(calibration_error(y_test, y_preds_tree))
 
         print("Gurobi loss: ", best_mio.model.objVal)
 
