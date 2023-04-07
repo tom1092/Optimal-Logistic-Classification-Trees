@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn.datasets import load_diabetes
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import calibration_curve
 from sklearn.svm import SVC
@@ -12,7 +11,7 @@ from TreeStructures import ClassificationTree
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-
+import os
 from sklearn.calibration import CalibrationDisplay
 
 
@@ -44,9 +43,9 @@ def calibration_error(y_true, y_proba, n_bins = 5, strategy = 'uniform', normali
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str)
-    parser.add_argument('model', type=str)
+    parser.add_argument('dataset', type=str) 
     parser.add_argument('seed', type=int)
+    parser.add_argument('-m','--models', help='<Required> models in pkl format delimited by -', required=True, type=str)
     args = parser.parse_args()
 
 
@@ -72,25 +71,38 @@ if __name__ == '__main__':
     X, X_test, y, y_test = train_test_split(X_data, y_data, test_size=0.2, stratify=y_data)
 
 
-    #Normalization
-    scaler = MinMaxScaler()
-    X  = scaler.fit_transform(X)
-    X_test  = scaler.transform(X_test)
+   
     
-
     
-    clf = pickle.load(open(args.model, 'rb'))
+    models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split('-')]
+    models[1][0].decisor = True
 
-    #clf.decisor = True
-
-    y_prob = clf.predict_proba(X_test)
-    y_pred = clf.predict(X_test)
-
-    print(balanced_accuracy_score(y_test, y_pred))
-
-    #Plot Calibration curve
-    display = CalibrationDisplay.from_predictions(y_test, y_prob, name='T-OLCT')
-
-    
+    ax = plt.gca()
     plt.title('Calibration plots (reliability curve)')
+    for (clf, name)  in models:
+        if clf.decisor:
+            #Standardization
+            scaler = StandardScaler()
+            X_train = scaler.fit(X)
+            X_test_1  = scaler.transform(X_test)
+            y_prob = clf.predict_proba(X_test_1)
+            y_pred = clf.predict(X_test_1)
+            print(name, balanced_accuracy_score(2*y_test-1, y_pred))
+        
+        else:
+            #Normalization
+            scaler = MinMaxScaler()
+            X_train = scaler.fit(X)
+            X_test_2  = scaler.transform(X_test)
+            y_prob = clf.predict_proba(X_test_2)
+            y_pred = clf.predict(X_test_2)
+            print(name, balanced_accuracy_score(y_test, y_pred))
+        
+        
+        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax)
+
+    names = ['IDEAL MODEL', 'OCT-H', 'T-OLCT']
+    ax.legend(names)
+    #plt.legend(loc = 'upper left')
     plt.show()
+
