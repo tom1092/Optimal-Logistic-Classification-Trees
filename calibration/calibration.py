@@ -74,19 +74,20 @@ if __name__ == '__main__':
    
     
     
-    models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split('-')]
-    models[1][0].decisor = True
+    models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split(' ')]
+    models[0][0].decisor = True
 
-    ax = plt.gca()
-    plt.title('Calibration plots (reliability curve)')
+    f, ax = plt.subplots(1,1)
+    plt.title('Calibration plots (reliability curve) \n'+args.dataset.split('/')[-1].split('.')[0])
     for (clf, name)  in models:
         if clf.decisor:
             #Standardization
+            clf.print_tree_structure()
             scaler = StandardScaler()
-            X_train = scaler.fit(X)
-            X_test_1  = scaler.transform(X_test)
-            y_prob = clf.predict_proba(X_test_1)
-            y_pred = clf.predict(X_test_1)
+            X= scaler.fit_transform(X)
+            X_test = scaler.transform(X_test)
+            y_prob = clf.predict_proba(X_test)
+            y_pred = clf.predict(X_test)
             print(name, balanced_accuracy_score(2*y_test-1, y_pred))
         
         else:
@@ -99,10 +100,19 @@ if __name__ == '__main__':
             print(name, balanced_accuracy_score(y_test, y_pred))
         
         
-        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax)
+        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax, n_bins=2, pos_label=1)
 
-    names = ['IDEAL MODEL', 'OCT-H', 'T-OLCT']
+        #print(y_test)
+        print(y_prob)
+    names = ['IDEAL MODEL', 'T-OLCT']
     ax.legend(names)
-    #plt.legend(loc = 'upper left')
-    plt.show()
+    f.savefig('calibration/calib_{}.pdf'.format(args.dataset.split('/')[-1].split('.')[0]))
+
+
+
+
+    
+    
+
+
 
