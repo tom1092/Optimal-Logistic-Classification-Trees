@@ -252,16 +252,13 @@ class OCTModel(BaseEstimator):
         Z = self.model.addVars(list(range(len(X))), T_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "Z")
 
         #A_j_t are the coefficients of hyperplanes for each node
-        A = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = -1, ub = 1, name = "A")
-
-        #A_j_t_tilde are the coefficients of hyperplanes for each node in abs value
-        A_tilde = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = 1, name = "A_tilde")
+        A = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.BINARY, lb = 0, ub = 1, name = "A")
 
         #Track if the leaf t has any point
         l = self.model.addVars(T_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "l")
 
         #Branch thresholds are box constraints
-        b = self.model.addVars(T_b, vtype = GRB.CONTINUOUS, lb = -1, ub = 1, name = "b")
+        b = self.model.addVars(T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = 1, name = "b")
 
         #Number of point of class k for each leaf (binary classification)
         N = self.model.addVars([0,1], T_l, vtype = GRB.CONTINUOUS, name="N")
@@ -271,11 +268,7 @@ class OCTModel(BaseEstimator):
 
         #Binary variables to decide wheter to split on branch t
         d = self.model.addVars(T_b, vtype = GRB.BINARY, name = 'd', lb = 0, ub = 1)
-
-        #Binary variables to decide wheter to split on branch t
-        S = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.BINARY, name = 's', lb = 0, ub = 1)
-
-
+        
         #c_k_t track the prediction. 1 if leaf t has label k else 0.
         C = self.model.addVars([0, 1], T_l, vtype = GRB.BINARY, name="C")
 
@@ -367,7 +360,7 @@ class OCTModel(BaseEstimator):
 
         if warm_start:
 
-            greedy_tree = GreedyDecisionTree(min_samples_leaf = N_min, max_depth = self.max_depth, split_strategy='oct')
+            greedy_tree = GreedyDecisionTree(min_samples_leaf = N_min, max_depth = self.max_depth, split_strategy='gini')
            
             greedy_tree.fit(X, y)
 
@@ -379,7 +372,7 @@ class OCTModel(BaseEstimator):
 
             
             for branch_index in range(len(b_warm)):
-                b[T_b[branch_index]].Start = -b_warm[branch_index]
+                b[T_b[branch_index]].Start = b_warm[branch_index]
                
 
 
@@ -540,11 +533,13 @@ def get_warm_start_from_tree(tree: ClassificationTree, X: np.array, y: np.array)
     
     #SET W_j_t
     w = np.zeros(shape = (len(X[0]), len(branches)))
-    for j in range(len(X[0])):
-        w[j, :] = [branches[i].weights[j] for i in range(len(branches))]
+
+    #For each branch set 1 the weight of the feature used by warm start
+    for t in range(len(branches)):
+        w[branches[t].feature, t] = 1
 
     #SET b_t
-    b = [branch.intercept for branch in branches]
+    b = [-branch.threshold for branch in branches]
 
     
     return w, b
