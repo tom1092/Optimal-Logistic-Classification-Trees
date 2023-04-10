@@ -632,7 +632,7 @@ class ClassificationTree:
 
 
     
-    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric = 'loss'):
+    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric: str = 'loss', class_weight: bool = False):
         
 
         """
@@ -645,6 +645,7 @@ class ClassificationTree:
                 :param: y: Label data
                 :param: parallel: Whether the tree is axis-aligned or not
                 :param: metric: The metric to use to choose the best feature for axis-aligned split (loss/bacc)
+                :param: class_weight: Whether to use class weights or not to fit the logistic regression model
 
 
         """
@@ -664,8 +665,14 @@ class ClassificationTree:
 
             #If the branch contains points and it's not pure
             if (len(X[branch.data_idxs]) > 0 and len(set(y[branch.data_idxs])) > 1):
+
+                if class_weight:
+                    weighting_strategy = 'balanced'
+                else:
+                    weighting_strategy = None
+
                 if not parallel:
-                    lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
+                    lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
                     branch.weights = np.squeeze(lr.coef_)
                     branch.intercept = lr.intercept_
                 else:
@@ -676,7 +683,7 @@ class ClassificationTree:
 
                     #For each feature
                     for j in range(len(X[0])):
-                        lr = LogisticRegression(class_weight = 'balanced', penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j].reshape((-1, 1)), y[branch.data_idxs])
+                        lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j].reshape((-1, 1)), y[branch.data_idxs])
                         weights = np.zeros(len(X[0]))
                         weights[j] = lr.coef_[0]
                         loss = 0
