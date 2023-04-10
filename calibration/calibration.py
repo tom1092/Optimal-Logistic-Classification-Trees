@@ -37,7 +37,6 @@ def calibration_error(y_true, y_proba, n_bins = 5, strategy = 'uniform', normali
     return summ 
    
 
-    
 
 
 if __name__ == '__main__':
