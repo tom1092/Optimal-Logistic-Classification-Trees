@@ -514,7 +514,7 @@ if __name__ == '__main__':
     parser.add_argument('--nt', dest='nt', type=int, default=8, help="Number of threads")
     parser.add_argument('--validate', dest='validate', action='store_true', help="Validate the model")
     parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
-    parser.add_argument('--v', dest='v', type=str, default=0, help="Choose the set for log_loss approximation: 0, 1, 2")
+    parser.add_argument('--v', dest='v', type=str, default='0', help="Choose the set for log_loss approximation: 0, 1, 2")
     parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
     parser.add_argument('--alpha', dest='alpha', type = float, default = 1, help="Slack weight in the objective")
     args = parser.parse_args()
