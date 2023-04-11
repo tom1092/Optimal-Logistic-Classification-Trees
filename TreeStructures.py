@@ -632,7 +632,7 @@ class ClassificationTree:
 
 
     
-    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric: str = 'loss', class_weight: bool = False):
+    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric: str = 'loss', weighted: bool = False):
         
 
         """
@@ -645,7 +645,7 @@ class ClassificationTree:
                 :param: y: Label data
                 :param: parallel: Whether the tree is axis-aligned or not
                 :param: metric: The metric to use to choose the best feature for axis-aligned split (loss/bacc)
-                :param: class_weight: Whether to use class weights or not to fit the logistic regression model
+                :param: weighted: Whether to use class weights or not to fit the logistic regression model
 
 
         """
@@ -666,7 +666,7 @@ class ClassificationTree:
             #If the branch contains points and it's not pure
             if (len(X[branch.data_idxs]) > 0 and len(set(y[branch.data_idxs])) > 1):
 
-                if class_weight:
+                if weighted:
                     weighting_strategy = 'balanced'
                 else:
                     weighting_strategy = None
@@ -693,7 +693,7 @@ class ClassificationTree:
                             #Compute the log loss
                             for i in range(len(branch.data_idxs)):
                                 loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_[0])))
-                                
+
                             #Sum the l1 regularization
                             loss += np.linalg.norm(weights, 1)
                         

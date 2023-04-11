@@ -20,7 +20,7 @@ from sklearn.metrics import balanced_accuracy_score
 
 class OLCTModel(BaseEstimator):
 
-    def __init__(self, alpha_0: float =1, alpha_1: float  = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1, v : str = 'v0'):
+    def __init__(self, alpha_0: float =1, alpha_1: float  = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1, v : str = 'v0', refine : str = 'standard'):
         
 
         """
@@ -40,6 +40,12 @@ class OLCTModel(BaseEstimator):
         
         :param: n_jobs: int, default=-1
             Number of CPU cores to be used for parallelizing the optimization with Gurobi.
+
+        :param: refine: str, default='standard'
+            Type of refinement used for the last branching level at the end of training:
+                - 'standard' for standard refinement using logistic regression.
+                - 'weighted' for weighted refinement using logistic regression with class_weight.
+                - 'none' for no refinement.
         
         :param: v: str, default='v0'
             Which set of points to use for building the linear underapprossimation of log_loss
@@ -57,6 +63,7 @@ class OLCTModel(BaseEstimator):
         self.mean_n_weights = 0
         self.n_jobs = n_jobs
         self.v = v
+        self.refine = refine
     
     def logistic_loss(self, v : np.array) -> np.array:
         """
@@ -363,7 +370,10 @@ class OLCTModel(BaseEstimator):
         self.mean_n_weights = np.mean([b.non_zero_weights_number for b in branches])
         
         #Refinement
-        mio_tree.refine_last_branch_layer(X, y, parallel=True, metric = 'loss')
+        if self.refine == 'standard':
+            mio_tree.refine_last_branch_layer(X, y, parallel=True)
+        elif self.refine == 'weighted':
+            mio_tree.refine_last_branch_layer(X, y, parallel=True, weighted=True)
         self.mio_tree = mio_tree
         
         
@@ -516,7 +526,8 @@ if __name__ == '__main__':
     parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
     parser.add_argument('--v', dest='v', type=str, default='0', help="Choose the set for log_loss approximation: 0, 1, 2")
     parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
-    parser.add_argument('--alpha', dest='alpha', type = float, default = 1, help="Slack weight in the objective")
+    parser.add_argument('--transform', dest='transform', type=str, default='standard', help="Transformation for the data: standard, minmax")
+    parser.add_argument('--refine', dest='refine', type=str, default='standard', help="Type of refinement: standard, none, weighted")
     args = parser.parse_args()
 
 
@@ -550,8 +561,13 @@ if __name__ == '__main__':
         X, X_test, y, y_test = train_test_split(X_data, y_data, test_size=0.2, stratify=y_data)
 
 
+
         #Scaling
-        scaler = StandardScaler()
+        if args.transform == 'minmax':
+            scaler = MinMaxScaler()
+        else:
+            scaler = StandardScaler()
+        
         X  = scaler.fit_transform(X)
         X_test  = scaler.transform(X_test)
 
@@ -559,7 +575,7 @@ if __name__ == '__main__':
 
         
 
-        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v=args.v)
+        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v=args.v, refine = args.refine)
 
         validation = args.validate
 
