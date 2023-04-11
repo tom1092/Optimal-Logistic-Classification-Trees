@@ -675,8 +675,8 @@ class ClassificationTree:
                     lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
                     branch.weights = np.squeeze(lr.coef_)
                     branch.intercept = lr.intercept_
-                else:
 
+                else:
                     #Get the best logistic regression model on a single feature
                     best_weights = None
                     best_loss = np.inf
@@ -693,6 +693,9 @@ class ClassificationTree:
                             #Compute the log loss
                             for i in range(len(branch.data_idxs)):
                                 loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_[0])))
+                                
+                            #Sum the l1 regularization
+                            loss += np.linalg.norm(weights, 1)
                         
                         #Best feature/threshold is the one with min balanced accuracy error
                         elif metric == 'bacc':
