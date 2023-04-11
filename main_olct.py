@@ -626,7 +626,7 @@ if __name__ == '__main__':
     result_line.append(str(round(np.mean(olct_gaps), 2)) + " $\pm$ "+str(round(np.std(olct_gaps), 2)))
     result_line.append(str(round(np.mean(olct_runtimes), 2)) + " $\pm$ "+str(round(np.std(olct_runtimes), 2)))
     result_line.append(str(round(np.mean(olct_n_weights), 2)) + " $\pm$ "+str(round(np.std(olct_n_weights), 2)))
-    result_line.append(str(round(np.mean(olct_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(olct_gaps_true_loss), 2)))
+    #result_line.append(str(round(np.mean(olct_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(olct_gaps_true_loss), 2)))
 
 
     to_csv(args.out_file, result_line)
