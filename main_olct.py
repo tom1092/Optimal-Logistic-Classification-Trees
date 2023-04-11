@@ -346,7 +346,7 @@ class OLCTModel(BaseEstimator):
         self.mean_n_weights = np.mean([b.non_zero_weights_number for b in branches])
         
         #Refinement
-        mio_tree.refine_last_branch_layer(X, y, parallel=False, metric='loss')
+        mio_tree.refine_last_branch_layer(X, y, parallel=False)
         self.mio_tree = mio_tree
 
         
