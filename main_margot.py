@@ -44,8 +44,10 @@ class MARGOTModel(BaseEstimator):
         """
                
         self.mio_tree = None
-        self.alpha_0 = alpha_0
-        self.alpha_1 = alpha_1
+        #self.alpha_0 = alpha_0
+        #self.alpha_1 = alpha_1
+        self.alpha_0 = 1
+        self.alpha_1 = 1
         self.max_depth = max_depth
         self.time_limit = time_limit
         self.mean_n_weights = 0
@@ -430,7 +432,7 @@ if __name__ == '__main__':
     parser.add_argument('--validate', dest='validate', action='store_true', help="Validate the model")
     parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
     parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
-    parser.add_argument('--alpha', dest='alpha', type = float, default = 1, help="Slack weight in the objective")
+    parser.add_argument('--transform', dest='transform', type=str, default='standard', help="Transformation for the data: standard, minmax")
     args = parser.parse_args()
 
 
@@ -461,11 +463,13 @@ if __name__ == '__main__':
 
 
         #Scaling
-        scaler = StandardScaler()
+        if args.transform == 'minmax':
+            scaler = MinMaxScaler()
+        else:
+            scaler = StandardScaler()
+
         X  = scaler.fit_transform(X)
         X_test  = scaler.transform(X_test)
-
-        
 
         mio_model = MARGOTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt)
 
