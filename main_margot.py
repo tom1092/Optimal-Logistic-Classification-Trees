@@ -44,10 +44,8 @@ class MARGOTModel(BaseEstimator):
         """
                
         self.mio_tree = None
-        #self.alpha_0 = alpha_0
-        #self.alpha_1 = alpha_1
-        self.alpha_0 = 1
-        self.alpha_1 = 1
+        self.alpha_0 = alpha_0
+        self.alpha_1 = alpha_1
         self.max_depth = max_depth
         self.time_limit = time_limit
         self.mean_n_weights = 0
