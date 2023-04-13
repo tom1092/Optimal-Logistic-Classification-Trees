@@ -76,6 +76,7 @@ if __name__ == '__main__':
     models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split(' ')]
     models[0][0].decisor = True
 
+    strategy = 'quantile'
     f, ax = plt.subplots(1,1)
     plt.title('Calibration plots (reliability curve) \n'+args.dataset.split('/')[-1].split('.')[0])
     for (clf, name)  in models:
@@ -99,13 +100,13 @@ if __name__ == '__main__':
             print(name, balanced_accuracy_score(y_test, y_pred))
         
         
-        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax, n_bins=2, pos_label=1)
+        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax, n_bins=10, strategy=strategy)
 
         #print(y_test)
         print(y_prob)
     names = ['IDEAL MODEL', 'T-OLCT']
     ax.legend(names)
-    f.savefig('calibration/calib_{}.pdf'.format(args.dataset.split('/')[-1].split('.')[0]))
+    f.savefig('calibration/calib_{}_{}.pdf'.format(args.dataset.split('/')[-1].split('.')[0], strategy))
 
 
 

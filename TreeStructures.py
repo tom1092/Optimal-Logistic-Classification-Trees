@@ -674,7 +674,7 @@ class ClassificationTree:
                 if not parallel:
                     lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
                     branch.weights = np.squeeze(lr.coef_)
-                    branch.intercept = lr.intercept_
+                    branch.intercept = float(lr.intercept_)
 
                 else:
                     #Get the best logistic regression model on a single feature
@@ -708,7 +708,7 @@ class ClassificationTree:
                             best_intercept = lr.intercept_[0]
 
                     branch.weights = best_weights
-                    branch.intercept = best_intercept
+                    branch.intercept = float(best_intercept)
 
 
 
@@ -794,6 +794,8 @@ class ClassificationTree:
         if self.decisor:
             if type == 'logistic':
                 probas = [1/(1+np.exp(-self.get_label_decisor_trees(x, self.tree[0])[1])) for x in data[:,]]
+                probas = [float(probas[i]) for i in range(len(probas))]
+            
             elif type == 'svm':
                 scores = [self.get_label_decisor_trees(x, self.tree[0])[1] for x in data[:,]]
                 minimum = np.min(scores)
@@ -804,7 +806,8 @@ class ClassificationTree:
             probas = [self.tree[self.predict_leaf(point, self.tree[0], self.oblique)].pos_prob for point in data]
         return probas
 
-   
+    
+    
     @staticmethod
     def predict_leaf(x: np.array, root_node: TreeNode, oblique: bool):
 

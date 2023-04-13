@@ -152,40 +152,41 @@ def make_fval_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
     f.savefig('pp_{}.pdf'.format(metric_name))
 
 
-metric_column_index = 4
-data = pd.read_csv('tests/log_logistic_v0_trasp.csv', header=None)
-runtimes_logistic_0 = data.to_numpy()[:, metric_column_index]
+metric_column_index = 2
+#data = pd.read_csv('tests/log_logistic_v0_trasp.csv', header=None)
+#runtimes_logistic_0 = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_logistic_trasp_ref_balanced_acc.csv', header=None)
+data = pd.read_csv('temp/log_olct_trasp_v0_ref.csv', header=None)
 runtimes_logistic_0_ref = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_oct.csv', header=None)
+data = pd.read_csv('temp/log_oct.csv', header=None)
 runtimes_oct = data.to_numpy()[:, metric_column_index]
 
 #data = pd.read_csv('last_tests/log_cart.csv', header=None)
 #runtimes_cart = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_logistic_v1_ref_new.csv', header=None)
-runtimes_logistic_1_ref = data.to_numpy()[:, metric_column_index]
+#data = pd.read_csv('tests/log_logistic_v1_ref_new.csv', header=None)
+#runtimes_logistic_1_ref = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_margot_hfs.csv', header=None)
+data = pd.read_csv('temp/log_margot_hfs.csv', header=None)
 runtimes_l2 = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_margot_sfs.csv', header=None)
-runtimes_sfs = data.to_numpy()[:, metric_column_index]
+#data = pd.read_csv('tests/log_margot_sfs.csv', header=None)
+#runtimes_sfs = data.to_numpy()[:, metric_column_index]
 
 
 #runtimes = np.row_stack((runtimes_logistic_0, runtimes_logistic_0_ref, runtimes_logistic_1, runtimes_logistic_1_ref,   runtimes_l2, runtimes_sfs))
 #print(np.count_nonzero(1 - runtimes_l2 <= 1- runtimes_logistic_0_ref) / 50)
-runtimes = np.row_stack((runtimes_oct, runtimes_logistic_0, runtimes_l2))
+runtimes = np.row_stack((-runtimes_oct, -runtimes_logistic_0_ref))
 #runtimes = np.row_stack((runtimes_logistic_0, runtimes_l2, runtimes_sfs))
 print(runtimes)
+print(np.count_nonzero(runtimes_logistic_0_ref <= runtimes_oct) / len(runtimes_logistic_0_ref))
 
 #make_perf_profile(runtimes, labels=['OLCT', 'MARGOT', 'SFS-MARGOT'], metric_name='Sparsity', max_tau=32)
 #make_fval_profile(runtimes, labels=['OLCT_V0', 'OLCT_V0_R', 'OLCT_V1', 'OLCT_V1_R', 'MARGOT', 'SFS-MARGOT'], metric_name='1 - BAcc', max_tau=5)
 #make_perf_profile(runtimes, labels=['OLCT_V0', 'OLCT_V0_R', 'OLCT_V1', 'OLCT_V1_R', 'MARGOT', 'SFS-MARGOT'], metric_name='time', max_tau=32)
-#make_fval_profile(runtimes, labels=['OCT', 'T-OLCT', 'HFS-MARGOT'], metric_name='1-Bacc', max_tau=10)
-make_perf_profile(runtimes, labels=['OCT', 'T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
+make_fval_profile(runtimes, labels=['OCT', 'T-OLCT'], metric_name='1-Bacc', max_tau=10)
+#make_perf_profile(runtimes, labels=['OCT', 'T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
 #make_perf_profile(runtimes, labels=['T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
 #make_perf_profile(runtimes, labels=['T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
 

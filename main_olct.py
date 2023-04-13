@@ -287,6 +287,7 @@ class OLCTModel(BaseEstimator):
 
         f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
 
+        
 
         self.model.setObjective(f)
 
