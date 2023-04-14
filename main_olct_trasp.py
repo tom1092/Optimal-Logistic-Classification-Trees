@@ -1,13 +1,9 @@
 import numpy as np
 from gurobipy import *
-from sklearn.datasets import load_wine, load_breast_cancer
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
-from scipy.stats import loguniform
-from sklearn.datasets import load_svmlight_file
 from TreeStructures import ClassificationTree
 from itertools import product
 import argparse
@@ -635,7 +631,7 @@ if __name__ == '__main__':
 
         if seed==0:
             #Save the model
-            pickle.dump(mio_tree, open('olct_trasp_std_ref_loss_unweighted_'+str(dataset)+'.pkl', 'wb'))        
+            pickle.dump(mio_tree, open('olct_trasp_minmax_ref_loss_unweighted_'+str(dataset)+'.pkl', 'wb'))        
     
 
     print("OLCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
