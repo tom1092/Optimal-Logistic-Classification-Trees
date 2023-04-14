@@ -1,6 +1,6 @@
 import numpy as np
 from gurobipy import *
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator

@@ -1,6 +1,6 @@
 import numpy as np
 from gurobipy import *
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
@@ -232,9 +232,9 @@ class OCTModel(BaseEstimator):
         L_hat = min(np.count_nonzero(y), N - np.count_nonzero(y))
 
 
-        #N_min is set as 5% of total number of training samples as in the original paper
-        N_min = int(0.05*len(y))
-
+        #N_min is set as 1% of total number of training samples
+        N_min = int(0.01*len(y))
+        
  
         # Y_i_k is 1 if x_i has class k. -1 o.w.        
         # Binary classification K = 2
@@ -579,6 +579,7 @@ if __name__ == '__main__':
     
     for seed in [0, 42, 314, 6, 71]:
     #for seed in [0]:
+
 
         np.random.seed(seed)
 
