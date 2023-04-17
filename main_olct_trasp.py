@@ -631,7 +631,7 @@ if __name__ == '__main__':
 
         if seed==0:
             #Save the model
-            pickle.dump(mio_tree, open('olct_trasp_minmax_ref_loss_unweighted_'+str(dataset)+'.pkl', 'wb'))        
+            pickle.dump(mio_tree, open('olct_trasp_std_validAcc_ref_loss_unweighted_'+str(dataset)+'.pkl', 'wb'))        
     
 
     print("OLCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
