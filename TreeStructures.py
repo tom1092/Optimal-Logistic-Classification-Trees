@@ -515,6 +515,7 @@ class ClassificationTree:
                 :param: oblique: a boolean value that specifies whether the decision tree is oblique (i.e., has split planes that are not aligned with the feature axes)
 
         """
+
         #First empty each previous index set for each node
         stack = [root_node]
         while(stack):
@@ -546,7 +547,7 @@ class ClassificationTree:
 
                 :param: x: The point of which you want to know the path in the tree.
                 :param: root_node: The root node of the tree.
-                :param: oblique: Wheter the tree is axis-aligned or oblique
+                :param: oblique: Whether the tree is axis-aligned or oblique
         """
 
         #Start from the node 
@@ -708,6 +709,7 @@ class ClassificationTree:
                             best_intercept = lr.intercept_[0]
 
                     branch.weights = best_weights
+                    branch.non_zero_weights_number = np.sum(np.abs(branch.weights) > 1e-05)
                     branch.intercept = float(best_intercept)
 
 

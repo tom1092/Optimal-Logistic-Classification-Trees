@@ -494,7 +494,7 @@ class OCTModel(BaseEstimator):
        
 
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'accuracy')
 
         random_search.fit(X, y)
         best_estimator = random_search.best_estimator_

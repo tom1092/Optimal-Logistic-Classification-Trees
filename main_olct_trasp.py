@@ -294,7 +294,7 @@ class OLCTModel(BaseEstimator):
 
 
         f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-
+        #f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
 
         self.model.setObjective(f)
 
@@ -438,11 +438,11 @@ class OLCTModel(BaseEstimator):
         """
         
         param_dist = {'alpha_0': [1e-02,  1e-01, 1, 1e01, 1e02], 'alpha_1': [1e-02, 1e-01, 1, 1e01, 1e02]}
+        
        
-       
-
+        
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'accuracy')
 
         random_search.fit(X, y)
         best_estimator = random_search.best_estimator_
