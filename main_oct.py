@@ -664,7 +664,7 @@ if __name__ == '__main__':
 
         if seed==0:
             #Save the model
-            pickle.dump(mio_tree, open('oct_1%_'+str(dataset)+'.pkl', 'wb'))
+            pickle.dump(mio_tree, open('oct_validAcc_'+str(dataset)+'.pkl', 'wb'))
 
 
 
