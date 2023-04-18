@@ -10,7 +10,7 @@ import argparse
 import csv
 import pickle
 from dt_greedy_growing import GreedyDecisionTree
-from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import balanced_accuracy_score, accuracy_score
 
 
 
@@ -588,8 +588,8 @@ if __name__ == '__main__':
 
 
         mio_tree = best_mio.mio_tree
-        train_acc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
-        test_acc = 100*balanced_accuracy_score(2*y_test- 1, best_mio.predict(X_test))
+        train_acc = 100*accuracy_score(2*y - 1, best_mio.predict(X))
+        test_acc = 100*accuracy_score(2*y_test- 1, best_mio.predict(X_test))
         
 
         log_loss, reg_loss = mio_tree.compute_log_loss(X, 2*y -1)
