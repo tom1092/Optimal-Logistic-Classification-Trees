@@ -293,8 +293,8 @@ class OLCTModel(BaseEstimator):
 
 
 
-        f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-        #f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+        #f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+        f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
 
         self.model.setObjective(f)
 
@@ -367,7 +367,7 @@ class OLCTModel(BaseEstimator):
         
         #Refinement
         if self.refine == 'standard':
-            mio_tree.refine_last_branch_layer(X, y, parallel=True)
+            mio_tree.refine_last_branch_layer(X, y, parallel=True, penalty='none')
         elif self.refine == 'weighted':
             mio_tree.refine_last_branch_layer(X, y, parallel=True, weighted=True)
         self.mio_tree = mio_tree
@@ -533,6 +533,7 @@ if __name__ == '__main__':
     olct_n_weights = []
     olct_runtimes = []
     olct_gaps_true_loss = []
+    bacc_train, bacc_test = [], []
     for seed in [0, 42, 314, 6, 71]:
 
         np.random.seed(seed)
@@ -590,6 +591,9 @@ if __name__ == '__main__':
         mio_tree = best_mio.mio_tree
         train_acc = 100*accuracy_score(2*y - 1, best_mio.predict(X))
         test_acc = 100*accuracy_score(2*y_test- 1, best_mio.predict(X_test))
+
+        train_bacc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
+        test_bacc = 100*balanced_accuracy_score(2*y_test - 1, best_mio.predict(X_test))
         
 
         log_loss, reg_loss = mio_tree.compute_log_loss(X, 2*y -1)
@@ -601,6 +605,9 @@ if __name__ == '__main__':
 
         olct_trains.append(train_acc)
         olct_tests.append(test_acc)
+
+        bacc_train.append(train_bacc)
+        bacc_test.append(test_bacc)
         
 
         result_line = []
@@ -610,6 +617,7 @@ if __name__ == '__main__':
         result_line.append(str(seed))
 
         result_line.append(str(round(test_acc, 2)))
+        result_line.append(str(round(test_bacc, 2)))
         result_line.append(str(round(best_mio.model.MIPGap * 1e02, 2)))
         result_line.append(str(round(best_mio.model.Runtime, 2)))
 
@@ -649,6 +657,8 @@ if __name__ == '__main__':
 
     result_line.append(str(round(np.mean(olct_trains), 2)) + " $\pm$ "+str(round(np.std(olct_trains), 2)))
     result_line.append(str(round(np.mean(olct_tests), 2)) + " $\pm$ "+str(round(np.std(olct_tests), 2)))
+    result_line.append(str(round(np.mean(bacc_train), 2)) + " $\pm$ "+str(round(np.std(bacc_train), 2)))
+    result_line.append(str(round(np.mean(bacc_test), 2)) + " $\pm$ "+str(round(np.std(bacc_test), 2)))
     result_line.append(str(round(np.mean(olct_gaps), 2)) + " $\pm$ "+str(round(np.std(olct_gaps), 2)))
     result_line.append(str(round(np.mean(olct_runtimes), 2)) + " $\pm$ "+str(round(np.std(olct_runtimes), 2)))
     result_line.append(str(round(np.mean(olct_n_weights), 2)) + " $\pm$ "+str(round(np.std(olct_n_weights), 2)))

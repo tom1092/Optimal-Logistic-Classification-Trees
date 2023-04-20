@@ -633,7 +633,7 @@ class ClassificationTree:
 
 
     
-    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric: str = 'loss', weighted: bool = False):
+    def refine_last_branch_layer(self, X: np.array, y:np.array, parallel: bool = False, metric: str = 'loss', weighted: bool = False, penalty: str = 'l1'):
         
 
         """
@@ -673,7 +673,7 @@ class ClassificationTree:
                     weighting_strategy = None
 
                 if not parallel:
-                    lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
+                    lr = LogisticRegression(class_weight = weighting_strategy, penalty = penalty, solver = 'lbfgs', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
                     branch.weights = np.squeeze(lr.coef_)
                     branch.intercept = float(lr.intercept_)
 
@@ -684,7 +684,7 @@ class ClassificationTree:
 
                     #For each feature
                     for j in range(len(X[0])):
-                        lr = LogisticRegression(class_weight = weighting_strategy, penalty = 'l1', solver = 'liblinear', C = branch.C).fit(X[branch.data_idxs, j].reshape((-1, 1)), y[branch.data_idxs])
+                        lr = LogisticRegression(class_weight = weighting_strategy, penalty = penalty, solver = 'lbfgs', C = branch.C).fit(X[branch.data_idxs, j].reshape((-1, 1)), y[branch.data_idxs])
                         weights = np.zeros(len(X[0]))
                         weights[j] = lr.coef_[0]
                         loss = 0
@@ -696,7 +696,8 @@ class ClassificationTree:
                                 loss += branch.C * np.log(1+np.exp(-y[branch.data_idxs[i]]*(np.dot(X[branch.data_idxs[i]], weights) + lr.intercept_[0])))
 
                             #Sum the l1 regularization
-                            loss += np.linalg.norm(weights, 1)
+                            if penalty == 'l1':
+                                loss += np.linalg.norm(weights, 1)
                         
                         #Best feature/threshold is the one with min balanced accuracy error
                         elif metric == 'bacc':
@@ -712,6 +713,7 @@ class ClassificationTree:
                     branch.non_zero_weights_number = np.sum(np.abs(branch.weights) > 1e-05)
                     branch.intercept = float(best_intercept)
 
+        self.build_idxs_of_subtree(X, range(len(y)), self.tree[0], oblique=True)
 
 
     
