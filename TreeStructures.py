@@ -463,24 +463,46 @@ class ClassificationTree:
               % len(self.tree))
 
         if self.oblique:
+
             for i in self.tree.keys():
                
                 if self.tree[i].is_leaf:
                     print("%snode=%s is child of node %s. It's a leaf node. Np: %s - Imp: %s - Value: %s" % (self.tree[i].depth * "\t", i, self.tree[i].parent_id, len(self.tree[i].data_idxs), self.tree[i].impurity, self.tree[i].value))
                 else:
-                    print("%snode=%s is child of node %s. It's a oblique test node node. C: %s Np: %s - Imp: %s - non-zero-weights: %s - Next =  %s if w^T x + %s <= 0 else "
-                        "%s."
-                        % (self.tree[i].depth * "\t",
-                            i,
-                            self.tree[i].parent_id,
-                            self.tree[i].C,
-                            len(self.tree[i].data_idxs),
-                            self.tree[i].impurity,
-                            self.tree[i].non_zero_weights_number,
-                            self.tree[i].left_node_id,
-                            self.tree[i].intercept,
-                            self.tree[i].right_node_id,
-                            ))
+                    if self.tree[i].non_zero_weights_number <= 1:
+
+                        coef_idx = np.argmax(np.abs(self.tree[i].weights))
+                        coef = self.tree[i].weights[coef_idx]
+                        print("%snode=%s is child of node %s. It's a oblique test node node. C: %s Np: %s - Imp: %s - non-zero-weights: %s - feature index: %s - Next =  %s if %sx + %s <= 0 else "
+                            "%s."
+                            % (self.tree[i].depth * "\t",
+                                i,
+                                self.tree[i].parent_id,
+                                self.tree[i].C,
+                                len(self.tree[i].data_idxs),
+                                self.tree[i].impurity,
+                                self.tree[i].non_zero_weights_number,
+                                coef_idx,
+                                self.tree[i].left_node_id,
+                                round(coef, 3),
+                                round(self.tree[i].intercept, 3),
+                                self.tree[i].right_node_id,
+                                ))
+
+                    else:
+                        print("%snode=%s is child of node %s. It's a oblique test node node. C: %s Np: %s - Imp: %s - non-zero-weights: %s - Next =  %s if w^T x + %s <= 0 else "
+                            "%s."
+                            % (self.tree[i].depth * "\t",
+                                i,
+                                self.tree[i].parent_id,
+                                self.tree[i].C,
+                                len(self.tree[i].data_idxs),
+                                self.tree[i].impurity,
+                                self.tree[i].non_zero_weights_number,
+                                self.tree[i].left_node_id,
+                                round(self.tree[i].intercept, 3),
+                                self.tree[i].right_node_id,
+                                ))
         else:
             for i in self.tree.keys():
                 if self.tree[i].is_leaf:

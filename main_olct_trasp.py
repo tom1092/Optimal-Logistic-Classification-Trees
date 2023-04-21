@@ -572,7 +572,7 @@ if __name__ == '__main__':
 
         
 
-        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v=args.v, refine = args.refine)
+        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v='v'+args.v, refine = args.refine)
 
         validation = args.validate
 
