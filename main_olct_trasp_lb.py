@@ -14,13 +14,13 @@ from sklearn.metrics import balanced_accuracy_score, accuracy_score
 
 
 
-
 class OLCTModel(BaseEstimator):
 
-    def __init__(self, alpha_0: float =1, alpha_1: float  = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1, v : str = 'v0', refine: str = 'standard'):
+    def __init__(self, alpha_0: float =1, alpha_1: float  = 1, max_depth : int = 2, time_limit : int = 100, n_jobs: int = -1, v : str = 'v0', refine : str = 'standard'):
+        
 
         """
-        Initialize OLCT model instance with given parameters.
+        Initialize T-OLCT model instance with given parameters.
         
         :param: alpha_0: float, default=1
             Regularization parameter for weights of branch layers at depth 0.
@@ -49,7 +49,6 @@ class OLCTModel(BaseEstimator):
             Sato, Toshiki, et al. 
             "Feature subset selection for logistic regression via mixed integer optimization." 
             Computational Optimization and Applications 64 (2016): 865-880.
-            
         """
 
         self.mio_tree = None
@@ -61,7 +60,6 @@ class OLCTModel(BaseEstimator):
         self.n_jobs = n_jobs
         self.v = v
         self.refine = refine
-    
     
     def logistic_loss(self, v : np.array) -> np.array:
         """
@@ -90,10 +88,9 @@ class OLCTModel(BaseEstimator):
 
         return -1/(1+np.exp(np.array(v)))
 
-
     def fit(self, X: np.array =None, y: np.array =None, debug : bool = False):
         
-
+        
         """
         Fits the model to the given training data using the MIP binary logistic regression tree with regularization.
 
@@ -109,7 +106,7 @@ class OLCTModel(BaseEstimator):
         :return: None
 
         """
-        
+
         self.model = Model()
         warm_start = True
 
@@ -128,6 +125,7 @@ class OLCTModel(BaseEstimator):
         if self.v == 'v2':
             v.extend([-0.89, 0.89, -3.55, 3.55])
 
+        
         f_v = self.logistic_loss(v)
         f_i_v = self.logistic_loss_derivative(v)
         
@@ -163,7 +161,7 @@ class OLCTModel(BaseEstimator):
 
             #Tree structure of depth = 3.
             #Set of branches
-            T_b = [0, 1, 2, 5, 8, 9, 12]
+            T_b = [0, 1, 8, 2, 5, 9, 12]
 
             #Set of last layer of branches
             T_b_l = [2, 5, 9, 12]
@@ -239,30 +237,38 @@ class OLCTModel(BaseEstimator):
         w_1_1= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W11")
 
         #Branch slacks
-        e = self.model.addVars(list(range(len(X))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e")
+        e = self.model.addVars(list(range(len(X))), T_b_l, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e")
 
         #Branch slacks linear approx
-        e_hat = self.model.addVars(list(range(len(X))), T_b, vtype=GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e_hat")
+        e_hat = self.model.addVars(list(range(len(X))), T_b_l, vtype=GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e_hat")
 
-        
+        #S_j_t is 1 if feature j is selected for branch t
+        feature_index = list(range(len(X[0])))
+        S = self.model.addVars(T_b, feature_index, vtype = GRB.BINARY, lb = 0, ub = 1, name = "S")
+
+        for t in T_b:
+            self.model.addSOS(GRB.SOS_TYPE1, [S[t,i] for i in feature_index])
+
+
         #Constraints for logistic classification
         for i in range(len(X)):
-            for t in T_b:
+            for t in T_b_l:
                 for k in K:
                     self.model.addConstr(e_hat[i, t] >= f_v[k] + f_i_v[k]*(y[i]*(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t]) - v[k]))
         
 
         #Constraints for slacks
         for i in range(len(X)):
-            for t in T_b:
+            for t in T_b_l:
                 self.model.addConstr(e[i, t] >= e_hat[i, t] - M*(1 - quicksum(z[i, l] for l in list(set(C_l[t]).union(set(C_r[t]))))))
 
 
+        
         #Constraints for l1 weights
         for j in range(len(X[0])):
             for t in T_b:
                 self.model.addConstr(w[j, t] == w_1_0[j, t] - w_1_1[j, t])
-                
+        
         
 
         #Constraints for tracking points
@@ -278,13 +284,19 @@ class OLCTModel(BaseEstimator):
             self.model.addConstr(quicksum(z[point_index, t] for t in T_b_l) == 1)
 
 
-        
+        #Constraints for feature selection
+
+        for j in range(len(X[0])):
+            for t in T_b:
+                self.model.addConstr(-M*S[t, j] <= w[j, t])
+                self.model.addConstr(M*S[t, j] >= w[j, t])
 
 
 
-        f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-        
-        
+
+        #f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+        #f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+        f = quicksum(e[i, t] for i in range(len(X)) for t in [2, 5, 9, 12]) + 0.01*quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0])))
 
         self.model.setObjective(f)
 
@@ -292,11 +304,12 @@ class OLCTModel(BaseEstimator):
 
         if warm_start:
 
-            olct_tree = GreedyDecisionTree(min_samples_leaf = 1, max_depth = self.max_depth, split_strategy='logistic', C=1)
-            olct_tree.fit(X, y)
+            
+            log_tree = GreedyDecisionTree(min_samples_leaf = 1, max_depth = self.max_depth, split_strategy='gini', C=1)
+            log_tree.fit(X, y)
 
 
-            W_warm, b_warm = get_warm_start_from_tree(olct_tree.tree, X, y)
+            W_warm, b_warm = get_warm_start_from_tree(log_tree.tree, X, y)
 
             for feature, branch_index in product(range(len(X[0])), range(len(b_warm))):
                 w[feature, T_b[branch_index]].Start = W_warm[feature, branch_index]
@@ -315,21 +328,24 @@ class OLCTModel(BaseEstimator):
         self.model.setParam('MIPGap', 1e-8)
         self.model.optimize()
 
+    
         if self.model.ObjVal < min:
             min = self.model.ObjVal
         if debug:
             for v in self.model.getVars():
                 print("Var: {}, Value: {}".format(v.varName, v.x))
 
-
-        #Create the solution tree 
+       
+        #Create the solution tree
+        
         mio_tree = ClassificationTree(depth = self.max_depth, oblique=True, decisor=True)
         mio_tree.random_complete_initialize(len(X[0]))
 
 
         
+        
         for branch_id in T_b:
-
+            
             mio_tree.tree[branch_id].intercept = self.model.getVarByName(f'b[{branch_id}]').x
             weights = []
             for j in range(len(X[0])):
@@ -339,10 +355,11 @@ class OLCTModel(BaseEstimator):
                 mio_tree.tree[branch_id].C = self.alpha_0
             else:
                 mio_tree.tree[branch_id].C = self.alpha_1
-
+            
             mio_tree.tree[branch_id].weights = np.array(weights)
             mio_tree.tree[branch_id].non_zero_weights_number = np.sum(np.abs(mio_tree.tree[branch_id].weights) > 1e-05)
-           
+            
+
 
         mio_tree.build_idxs_of_subtree(X, range(len(X)), mio_tree.tree[0], oblique=True)
 
@@ -352,12 +369,11 @@ class OLCTModel(BaseEstimator):
         
         #Refinement
         if self.refine == 'standard':
-            mio_tree.refine_last_branch_layer(X, y, parallel=False)
+            mio_tree.refine_last_branch_layer(X, y, parallel=True, penalty='none')
         elif self.refine == 'weighted':
-            mio_tree.refine_last_branch_layer(X, y, parallel=False, weighted=True)
-        
+            mio_tree.refine_last_branch_layer(X, y, parallel=True, weighted=True)
         self.mio_tree = mio_tree
-
+        
         
 
 
@@ -378,7 +394,7 @@ class OLCTModel(BaseEstimator):
             The score of the trained model on the input data, computed as 1 minus the misclassification loss.
 
         """
-        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)), decisor = True, oblique=True)
+        return 1 - ClassificationTree.misclassification_loss(self.mio_tree.tree[0], X, y, range(len(X)))
 
     def predict(self, X: np.array) -> np.array:
 
@@ -398,6 +414,8 @@ class OLCTModel(BaseEstimator):
         """
 
         return self.mio_tree.predict(X)
+    
+
 
     def validate(self, X: np.array, y: np.array) -> tuple:
 
@@ -421,13 +439,12 @@ class OLCTModel(BaseEstimator):
 
         """
         
-        
         param_dist = {'alpha_0': [1e-02,  1e-01, 1, 1e01, 1e02], 'alpha_1': [1e-02, 1e-01, 1, 1e01, 1e02]}
         
        
-
+        
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'accuracy')
 
         random_search.fit(X, y)
         best_estimator = random_search.best_estimator_
@@ -436,10 +453,9 @@ class OLCTModel(BaseEstimator):
         return best_estimator, best_params
 
 
-
-
 def get_warm_start_from_tree(tree: ClassificationTree, X: np.array, y: np.array) -> tuple:
 
+    
     """
 
     This function takes a ClassificationTree object and training data X and y as input, 
@@ -459,19 +475,23 @@ def get_warm_start_from_tree(tree: ClassificationTree, X: np.array, y: np.array)
         :return: b : list - List of intercepts for each branch in the tree.
     """
 
-    #Get leaves and branch sets
+
+    #Get leaves set
     branches, leaves = ClassificationTree.get_leaves_and_branches(tree.tree[0])
     leaves.sort(key = lambda x: x.id)
     branches.sort(key = lambda x: x.id)
     
-    #SET W_j_t
+    
+
+    #SET W_j_t 
     w = np.zeros(shape = (len(X[0]), len(branches)))
-    for j in range(len(X[0])):
-        w[j, :] = [branches[i].weights[j] for i in range(len(branches))]
+    for i in range(len(branches)):
+        feature_index = branches[i].feature
+        w[feature_index, i] = 1
 
     #SET b_t
-    b = [branch.intercept for branch in branches]
-
+    b = [-branch.threshold for branch in branches]
+    
 
     return w, b
 
@@ -492,6 +512,7 @@ def to_csv(filename : str , row : list):
         writer = csv.writer(f, delimiter=',',)
         writer.writerow(row)
 
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -501,8 +522,8 @@ if __name__ == '__main__':
     parser.add_argument('--nt', dest='nt', type=int, default=8, help="Number of threads")
     parser.add_argument('--validate', dest='validate', action='store_true', help="Validate the model")
     parser.add_argument('--out', dest = 'out_file', type=str, default='log.txt')
-    parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
     parser.add_argument('--v', dest='v', type=str, default='0', help="Choose the set for log_loss approximation: 0, 1, 2")
+    parser.add_argument('--depth', dest='depth', type=int, default=2, help="Max depth for the tree")
     parser.add_argument('--transform', dest='transform', type=str, default='standard', help="Transformation for the data: standard, minmax")
     parser.add_argument('--refine', dest='refine', type=str, default='standard', help="Type of refinement: standard, none, weighted")
     args = parser.parse_args()
@@ -514,6 +535,7 @@ if __name__ == '__main__':
     olct_n_weights = []
     olct_runtimes = []
     olct_gaps_true_loss = []
+    bacc_train, bacc_test = [], []
     for seed in [0, 42, 314, 6, 71]:
 
         np.random.seed(seed)
@@ -528,11 +550,15 @@ if __name__ == '__main__':
         data = np.load(args.dataset)
         X_data = data[:, 1:]
         y_data = data[:, 0].astype(np.int64)
+
+
         print("Data Shape: ", X_data.shape)
 
 
         #80/20 split
+
         X, X_test, y, y_test = train_test_split(X_data, y_data, test_size=0.2, stratify=y_data)
+
 
 
         #Scaling
@@ -546,7 +572,9 @@ if __name__ == '__main__':
 
         
 
-        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v='v'+args.v, refine=args.refine)
+        
+
+        mio_model = OLCTModel(max_depth = args.depth, time_limit = args.time, n_jobs = args.nt, v='v'+args.v, refine = args.refine)
 
         validation = args.validate
 
@@ -556,15 +584,19 @@ if __name__ == '__main__':
             best_mio = mio_model.fit(X, 2*y - 1, debug = args.debug)
             best_mio = mio_model
 
-
         olct_gaps.append(best_mio.model.MIPGap)
         olct_runtimes.append(best_mio.model.Runtime)
         olct_n_weights.append(best_mio.mean_n_weights)
 
 
+
         mio_tree = best_mio.mio_tree
-        train_acc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
-        test_acc = 100*balanced_accuracy_score(2*y_test- 1, best_mio.predict(X_test))
+        train_acc = 100*accuracy_score(2*y - 1, best_mio.predict(X))
+        test_acc = 100*accuracy_score(2*y_test- 1, best_mio.predict(X_test))
+
+        train_bacc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
+        test_bacc = 100*balanced_accuracy_score(2*y_test - 1, best_mio.predict(X_test))
+        
 
         log_loss, reg_loss = mio_tree.compute_log_loss(X, 2*y -1)
 
@@ -575,6 +607,9 @@ if __name__ == '__main__':
 
         olct_trains.append(train_acc)
         olct_tests.append(test_acc)
+
+        bacc_train.append(train_bacc)
+        bacc_test.append(test_bacc)
         
 
         result_line = []
@@ -584,6 +619,7 @@ if __name__ == '__main__':
         result_line.append(str(seed))
 
         result_line.append(str(round(test_acc, 2)))
+        result_line.append(str(round(test_bacc, 2)))
         result_line.append(str(round(best_mio.model.MIPGap * 1e02, 2)))
         result_line.append(str(round(best_mio.model.Runtime, 2)))
 
@@ -602,11 +638,11 @@ if __name__ == '__main__':
         mio_tree.print_tree_structure()
         print("\n"*3)
 
+
         if seed==0:
             #Save the model
-            pickle.dump(mio_tree, open('olct_'+str(dataset)+'.pkl', 'wb'))
-
-
+            pickle.dump(mio_tree, open('olct_trasp_std_validAcc_ref_loss_unweighted_'+str(dataset)+'.pkl', 'wb'))        
+    
 
     print("OLCT Train: ", np.mean(olct_trains), " +- ", np.std(olct_trains))
     print("OLCT Test: ", np.mean(olct_tests), " +- ", np.std(olct_tests))
@@ -616,12 +652,15 @@ if __name__ == '__main__':
 
     result_line = []
 
+
     dataset = args.dataset.split('/')[-1]
     shape = str(X_data.shape[0])+" $\times$ "+str(X_data.shape[1])
     result_line.append(dataset)
 
     result_line.append(str(round(np.mean(olct_trains), 2)) + " $\pm$ "+str(round(np.std(olct_trains), 2)))
     result_line.append(str(round(np.mean(olct_tests), 2)) + " $\pm$ "+str(round(np.std(olct_tests), 2)))
+    result_line.append(str(round(np.mean(bacc_train), 2)) + " $\pm$ "+str(round(np.std(bacc_train), 2)))
+    result_line.append(str(round(np.mean(bacc_test), 2)) + " $\pm$ "+str(round(np.std(bacc_test), 2)))
     result_line.append(str(round(np.mean(olct_gaps), 2)) + " $\pm$ "+str(round(np.std(olct_gaps), 2)))
     result_line.append(str(round(np.mean(olct_runtimes), 2)) + " $\pm$ "+str(round(np.std(olct_runtimes), 2)))
     result_line.append(str(round(np.mean(olct_n_weights), 2)) + " $\pm$ "+str(round(np.std(olct_n_weights), 2)))
