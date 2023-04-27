@@ -137,6 +137,9 @@ class OLCTModel(BaseEstimator):
             T_b = [0, 1, 4]
             T_b_l = [1, 4]
 
+            #List of branches that acts just as forwarding branches
+            T_b_f = [0]
+
 
             #Set of branches that makes the classification
             #T_b_l = [1, 4]
@@ -153,6 +156,12 @@ class OLCTModel(BaseEstimator):
                 0: [1],
                 1: [1],
                 4: [4]
+            }
+
+            Anc = {
+                0: [],
+                1: [0],
+                4: [0]
             }
 
         
@@ -221,20 +230,22 @@ class OLCTModel(BaseEstimator):
 
 
 
-
         #Z_i_t is 1 if the point i arrive at branch t in T_b_l
         z = self.model.addVars(list(range(len(X))), T_b_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "Z")
 
         #Branch biases
-        b = self.model.addVars(T_b, vtype = GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "b")
+        b = self.model.addVars(T_b_f, vtype = GRB.CONTINUOUS, lb = -1, ub = 0, name = "b")
 
-        #Branch weights 
-        w = self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "W")
+        #Track if the node splits or not
+        d = self.model.addVars(T_b, vtype = GRB.BINARY, lb = 0, ub = 1, name = "d")
 
-        #Branch weights for 1 norm
-        w_1_0= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W10")
+        #Forward Branch weights 
+        w = self.model.addVars(list(range(len(X[0]))), T_b_f, vtype = GRB.BINARY, lb = 0, ub = 1, name = "W")
 
-        w_1_1= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W11")
+        #Branch weights for logistic on last branch
+        w_l= self.model.addVars(list(range(len(X[0]))), T_b_l, vtype = GRB.CONTINUOUS, lb = -GRB.INFINITY, ub = GRB.INFINITY, name = "WL")
+
+        #w_1_1= self.model.addVars(list(range(len(X[0]))), T_b, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "W11")
 
         #Branch slacks
         e = self.model.addVars(list(range(len(X))), T_b_l, vtype = GRB.CONTINUOUS, lb = 0, ub = GRB.INFINITY, name = "e")
@@ -244,17 +255,25 @@ class OLCTModel(BaseEstimator):
 
         #S_j_t is 1 if feature j is selected for branch t
         feature_index = list(range(len(X[0])))
-        S = self.model.addVars(T_b, feature_index, vtype = GRB.BINARY, lb = 0, ub = 1, name = "S")
+        S = self.model.addVars(T_b_l, feature_index, vtype = GRB.BINARY, lb = 0, ub = 1, name = "S")
 
-        for t in T_b:
-            self.model.addSOS(GRB.SOS_TYPE1, [S[t,i] for i in feature_index])
+
+        #Just one feature for each logistic classifier on the last branch
+        for t in T_b_l:
+            self.model.addConstr(quicksum(S[t, j] for j in feature_index) <= d[t])
+
+        
+        #Just one feature for each forward branch
+        for t in T_b_f:
+            self.model.addConstr(quicksum(w[j,t] for j in feature_index) <= d[t])
+
 
 
         #Constraints for logistic classification
         for i in range(len(X)):
             for t in T_b_l:
                 for k in K:
-                    self.model.addConstr(e_hat[i, t] >= f_v[k] + f_i_v[k]*(y[i]*(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t]) - v[k]))
+                    self.model.addConstr(e_hat[i, t] >= f_v[k] + f_i_v[k]*(y[i]*(quicksum(w_l[j, t]*X[i, j] for j in range(len(X[0]))) + b[t]) - v[k]))
         
 
         #Constraints for slacks
@@ -262,12 +281,6 @@ class OLCTModel(BaseEstimator):
             for t in T_b_l:
                 self.model.addConstr(e[i, t] >= e_hat[i, t] - M*(1 - quicksum(z[i, l] for l in list(set(C_l[t]).union(set(C_r[t]))))))
 
-
-        
-        #Constraints for l1 weights
-        for j in range(len(X[0])):
-            for t in T_b:
-                self.model.addConstr(w[j, t] == w_1_0[j, t] - w_1_1[j, t])
         
         
 
@@ -277,6 +290,12 @@ class OLCTModel(BaseEstimator):
                 self.model.addConstr(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t] >= eps - M*(1-quicksum(z[i, l] for l in C_r[t])))
                 self.model.addConstr(quicksum(w[j, t]*X[i, j] for j in range(len(X[0]))) + b[t] <= M*(1-quicksum(z[i, l] for l in C_l[t])))
 
+
+        #Tree structure: If the node t splits, then also all the ancestors have to split   
+        for branch_index in T_b:
+            for anc_index in Anc[branch_index]:
+                self.model.addConstr(d[branch_index] <= d[anc_index])
+        
         
 
         #Each point has to arrive on exactly one leaf
@@ -285,18 +304,17 @@ class OLCTModel(BaseEstimator):
 
 
         #Constraints for feature selection
-
         for j in range(len(X[0])):
             for t in T_b:
-                self.model.addConstr(-M*S[t, j] <= w[j, t])
-                self.model.addConstr(M*S[t, j] >= w[j, t])
+                self.model.addConstr(-M*S[t, j] <= w_l[j, t])
+                self.model.addConstr(M*S[t, j] >= w_l[j, t])
 
 
 
 
         #f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
         #f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-        f = quicksum(e[i, t] for i in range(len(X)) for t in [2, 5, 9, 12]) + 0.01*quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0])))
+        f = quicksum(e[i, t] for i in range(len(X)) for t in T_b_l) + self.alpha*quicksum(d[t] for t in T_b)
 
         self.model.setObjective(f)
 
