@@ -234,7 +234,7 @@ class OLCTModel(BaseEstimator):
         z = self.model.addVars(list(range(len(X))), T_b_l, vtype = GRB.BINARY, lb = 0, ub = 1, name = "Z")
 
         #Branch biases
-        b = self.model.addVars(T_b_f, vtype = GRB.CONTINUOUS, lb = -1, ub = 0, name = "b")
+        b = self.model.addVars(T_b, vtype = GRB.CONTINUOUS, lb = -1, ub = 0, name = "b")
 
         #Track if the node splits or not
         d = self.model.addVars(T_b, vtype = GRB.BINARY, lb = 0, ub = 1, name = "d")
