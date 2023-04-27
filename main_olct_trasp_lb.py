@@ -305,7 +305,7 @@ class OLCTModel(BaseEstimator):
 
         #Constraints for feature selection
         for j in range(len(X[0])):
-            for t in T_b:
+            for t in T_b_l:
                 self.model.addConstr(-M*S[t, j] <= w_l[j, t])
                 self.model.addConstr(M*S[t, j] >= w_l[j, t])
 
@@ -314,7 +314,8 @@ class OLCTModel(BaseEstimator):
 
         #f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
         #f = self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-        f = quicksum(e[i, t] for i in range(len(X)) for t in T_b_l) + self.alpha*quicksum(d[t] for t in T_b)
+        #f = quicksum(e[i, t] for i in range(len(X)) for t in T_b_l) + self.alpha*quicksum(d[t] for t in T_b)
+        f = quicksum(e[i, t] for i in range(len(X)) for t in T_b_l)
 
         self.model.setObjective(f)
 
@@ -362,12 +363,27 @@ class OLCTModel(BaseEstimator):
 
         
         
-        for branch_id in T_b:
+        for branch_id in T_b_f:
             
             mio_tree.tree[branch_id].intercept = self.model.getVarByName(f'b[{branch_id}]').x
             weights = []
             for j in range(len(X[0])):
                 weights.append(self.model.getVarByName(f'W[{j},{branch_id}]').x)
+
+            if branch_id == 0:
+                mio_tree.tree[branch_id].C = self.alpha_0
+            else:
+                mio_tree.tree[branch_id].C = self.alpha_1
+            
+            mio_tree.tree[branch_id].weights = np.array(weights)
+            mio_tree.tree[branch_id].non_zero_weights_number = np.sum(np.abs(mio_tree.tree[branch_id].weights) > 1e-05)
+
+        for branch_id in T_b_l:
+            
+            mio_tree.tree[branch_id].intercept = self.model.getVarByName(f'b[{branch_id}]').x
+            weights = []
+            for j in range(len(X[0])):
+                weights.append(self.model.getVarByName(f'WL[{j},{branch_id}]').x)
 
             if branch_id == 0:
                 mio_tree.tree[branch_id].C = self.alpha_0
