@@ -108,7 +108,7 @@ class OLCTModel(BaseEstimator):
         """
 
         self.model = Model()
-        warm_start = True
+        warm_start = False
 
 
         N = len(y)
