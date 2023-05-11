@@ -1,0 +1,10 @@
+breast,models/olct_breast.npy.pkl,0.06451952187565148
+climate,models/olct_climate.npy.pkl,0.10419569184147065
+haberman,models/olct_haberman.npy.pkl,0.12643079550230796
+heart,models/olct_heart.npy.pkl,0.07537481637473425
+ionosphere,models/olct_ionosphere.npy.pkl,0.06456799062972544
+parkinsons,models/olct_parkinsons.npy.pkl,0.05108667787053829
+sonar,models/olct_sonar.npy.pkl,0.16504326605096176
+spectf,models/olct_spectf.npy.pkl,0.20698224352326436
+tik-tak-toe,models/olct_tik-tak-toe.npy.pkl,0.12613932291921517
+wholesale,models/olct_wholesale.npy.pkl,0.07731901341612367
