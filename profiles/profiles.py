@@ -59,7 +59,7 @@ def make_perf_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
     markers = ['^', 'o',  's', '+', 'x', 'd', 'v', '<', '>']
     markers_cycler = itertools.cycle(markers)
     linestyle_cycler = itertools.cycle(linestyles)
-
+    colors = ['b', 'g', 'r', 'orange']
     ax.set_xlabel('performance ratio - {}'.format(metric_name), fontsize=13)
     ax.set_ylabel('fraction of problems', fontsize=13)
 
@@ -68,8 +68,8 @@ def make_perf_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
         lists = sorted(perfs[i].items()) # sorted by key, return a list of tuples
         x, y = zip(*lists,)
 
-        ax.plot(x,y,next(markers_cycler), markersize=8,
-                    markevery=0.15, linestyle=next(linestyle_cycler),label=labels[i])
+        ax.plot(x,y,next(markers_cycler), markersize=5,
+                    markevery=0.15, linestyle=next(linestyle_cycler),label=labels[i], color = colors[i])
 
 
     plt.legend(loc=4)
@@ -124,7 +124,7 @@ def make_fval_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
     #plt.xscale('log')
     ax.yaxis.set_ticks_position('left')
     ax.xaxis.set_ticks_position('bottom')
-    ax.set_xticks(np.arange(0, 10, 2))
+    ax.set_xticks(np.arange(0, 6, 1))
     #ax.set_xticks([0.05, 0.1, 0.5, 1, 5, 10])
     ax.get_xaxis().set_major_formatter(ticker.ScalarFormatter())
 
@@ -132,6 +132,7 @@ def make_fval_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
     markers = ['^', 'o',  's', '+', 'x', 'd', 'v', '<', '>']
     markers_cycler = itertools.cycle(markers)
     linestyle_cycler = itertools.cycle(linestyles)
+    colors = ['b', 'g', 'r', 'orange']
 
     ax.set_xlabel('t', fontsize=13)
     ax.set_ylabel('p(abs_gap < t)', fontsize=13)
@@ -144,22 +145,22 @@ def make_fval_profile(scores, max_tau=100, step=0.01, labels=None, metric_name='
             lists = sorted(perfs[i].items()) # sorted by key, return a list of tuples
             x, y = zip(*lists,)
 
-            ax.plot(x,y,next(markers_cycler), markersize=8,
-                    markevery=0.15, linestyle=next(linestyle_cycler),label=labels[i])
+            ax.plot(x,y,next(markers_cycler), markersize=5,
+                    markevery=0.15, linestyle=next(linestyle_cycler),label=labels[i], color = colors[i])
 
 
     plt.legend(loc=4)
     f.savefig('pp_{}.pdf'.format(metric_name))
 
 
-metric_column_index = 2
+metric_column_index = 5
 #data = pd.read_csv('tests/log_logistic_v0_trasp.csv', header=None)
 #runtimes_logistic_0 = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('temp/log_olct_trasp_validacc_v0_ref.csv', header=None)
+data = pd.read_csv('tests/log_olct_v0_ref.csv', header=None)
 runtimes_logistic_0_ref = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('temp/log_oct_validacc.csv', header=None)
+data = pd.read_csv('tests/log_oct_h.csv', header=None)
 runtimes_oct = data.to_numpy()[:, metric_column_index]
 
 #data = pd.read_csv('last_tests/log_cart.csv', header=None)
@@ -168,31 +169,20 @@ runtimes_oct = data.to_numpy()[:, metric_column_index]
 #data = pd.read_csv('tests/log_logistic_v1_ref_new.csv', header=None)
 #runtimes_logistic_1_ref = data.to_numpy()[:, metric_column_index]
 
-data = pd.read_csv('tests/log_margot_hfs.csv', header=None)
+data = pd.read_csv('tests/log_margot.csv', header=None)
 runtimes_l2 = data.to_numpy()[:, metric_column_index]
 
-#data = pd.read_csv('tests/log_margot_sfs.csv', header=None)
-#runtimes_sfs = data.to_numpy()[:, metric_column_index]
+data = pd.read_csv('tests/log_margot_sfs.csv', header=None)
+runtimes_sfs = data.to_numpy()[:, metric_column_index]
 
 
 #runtimes = np.row_stack((runtimes_logistic_0, runtimes_logistic_0_ref, runtimes_logistic_1, runtimes_logistic_1_ref,   runtimes_l2, runtimes_sfs))
 #print(np.count_nonzero(1 - runtimes_l2 <= 1- runtimes_logistic_0_ref) / 50)
-runtimes = np.row_stack((100-runtimes_oct, 100-runtimes_logistic_0_ref))
+runtimes = np.row_stack((runtimes_oct, runtimes_logistic_0_ref, runtimes_l2, runtimes_sfs))
 #runtimes = np.row_stack((runtimes_logistic_0, runtimes_l2, runtimes_sfs))
-print(runtimes)
-#Need to call fval profile every 5 rows (5 problems)
 
-#for i in range(0, int((len(runtimes[0])-4)/5)):
-#    make_fval_profile(runtimes[:, i*5:(i+1)*5], labels=['OCT', 'T-OLCT'], metric_name='1-Bacc', max_tau=10)
-#    input()
 
-#print(np.count_nonzero(runtimes_logistic_0_ref <= runtimes_oct) / len(runtimes_logistic_0_ref))
+make_perf_profile(runtimes, labels=['OCT-H', 'OLCT', 'MARGOT', 'SFS-MARGOT'], metric_name='Sparsity', max_tau=32)
 
-#make_perf_profile(runtimes, labels=['OLCT', 'MARGOT', 'SFS-MARGOT'], metric_name='Sparsity', max_tau=32)
-#make_fval_profile(runtimes, labels=['OLCT_V0', 'OLCT_V0_R', 'OLCT_V1', 'OLCT_V1_R', 'MARGOT', 'SFS-MARGOT'], metric_name='1 - BAcc', max_tau=5)
-#make_perf_profile(runtimes, labels=['OLCT_V0', 'OLCT_V0_R', 'OLCT_V1', 'OLCT_V1_R', 'MARGOT', 'SFS-MARGOT'], metric_name='time', max_tau=32)
-make_fval_profile(runtimes, labels=['OCT', 'T-OLCT'], metric_name='1-Bacc', max_tau=10)
-#make_perf_profile(runtimes, labels=['OCT', 'T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
-#make_perf_profile(runtimes, labels=['T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
-#make_perf_profile(runtimes, labels=['T-OLCT', 'HFS-MARGOT'], metric_name='Time', max_tau=32)
+#make_fval_profile(runtimes, labels=['OCT-H', 'OLCT', 'MARGOT', 'SFS-MARGOT'], metric_name='1-Bacc', max_tau=6)
 

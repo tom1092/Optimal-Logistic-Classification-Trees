@@ -485,7 +485,7 @@ class ClassificationTree:
                                 coef_idx,
                                 self.tree[i].left_node_id,
                                 round(coef, 3),
-                                round(self.tree[i].intercept, 3),
+                                round(float(self.tree[i].intercept), 3),
                                 self.tree[i].right_node_id,
                                 ))
 
@@ -500,7 +500,7 @@ class ClassificationTree:
                                 self.tree[i].impurity,
                                 self.tree[i].non_zero_weights_number,
                                 self.tree[i].left_node_id,
-                                round(self.tree[i].intercept, 3),
+                                round(float(self.tree[i].intercept), 3),
                                 self.tree[i].right_node_id,
                                 ))
         else:

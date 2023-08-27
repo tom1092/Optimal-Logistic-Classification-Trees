@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import os
 from sklearn.calibration import CalibrationDisplay
+import csv
 
 
 
@@ -25,17 +26,34 @@ def calibration_error(y_true, y_proba, n_bins = 5, strategy = 'uniform', normali
     prob_true, prob_pred = calibration_curve(y_true, y_proba, n_bins=n_bins, strategy=strategy)
     weights = []
     for r in range(n_bins):
-        w = np.count_nonzero([1 if r/n_bins<=y_proba[i] <= (r+1)/n_bins else 0 for i in range(len(y_proba))])/len(y_proba)
+        w = np.count_nonzero([1 if r/n_bins <= y_proba[i] < (r+1)/n_bins else 0 for i in range(len(y_proba))])/len(y_proba)
         weights.append(w)
-
     summ = 0
     j = 0
+   
     for i in range(len(weights)):
         if weights[i] > 0:
             summ += weights[i]*np.abs(prob_pred[j] - prob_true[j])
+            
             j += 1
     return summ 
    
+
+def to_csv(filename : str , row : list):
+
+    """
+    
+    This function takes a filename and a list of data rows as input, and appends the rows to a CSV file.
+
+    Parameters:
+    filename : str - Name of the CSV file.
+    row : list - List of data to be written to the CSV file.
+
+    """
+
+    with open(filename, 'a') as f:
+        writer = csv.writer(f, delimiter=',',)
+        writer.writerow(row)
 
 
 
@@ -44,7 +62,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=str) 
     parser.add_argument('seed', type=int)
-    parser.add_argument('-m','--models', help='<Required> models in pkl format delimited by -', required=True, type=str)
+    parser.add_argument('-m','--models', help='<Required> models in pkl format delimited by -', required=False, type=str)
     args = parser.parse_args()
 
 
@@ -70,43 +88,59 @@ if __name__ == '__main__':
     X, X_test, y, y_test = train_test_split(X_data, y_data, test_size=0.2, stratify=y_data)
 
 
-   
+    strategy = 'uniform'
     
+    if args.models:
+        models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split(' ')]
+        models[0][0].decisor = False
+
+        
+        f, ax = plt.subplots(1,1)
+        plt.title('Calibration plots (reliability curve) \n'+args.dataset.split('/')[-1].split('.')[0])
+
     
-    models = [ (pickle.load(open(model, 'rb')), model) for model in args.models.split(' ')]
-    models[0][0].decisor = True
+        for (clf, name)  in models:
+            if clf.decisor:
+                #Standardization
+                clf.print_tree_structure()
+                scaler = StandardScaler()
+                X = scaler.fit_transform(X)
+                X_test = scaler.transform(X_test)
+                y_prob = clf.predict_proba(X_test)
+                y_pred = clf.predict(X_test)
+                #print(y_prob)
+                print(name, balanced_accuracy_score(2*y_test-1, y_pred))
+            
+            else:
+                #Normalization
+                scaler = MinMaxScaler()
+                X = scaler.fit(X)
+                X_test  = scaler.transform(X_test)
+                y_prob = clf.predict_proba(X_test)
+                y_pred = clf.predict(X_test)
+                print(name, balanced_accuracy_score(y_test, y_pred))
+        
+    else:
 
-    strategy = 'quantile'
-    f, ax = plt.subplots(1,1)
-    plt.title('Calibration plots (reliability curve) \n'+args.dataset.split('/')[-1].split('.')[0])
-    for (clf, name)  in models:
-        if clf.decisor:
-            #Standardization
-            clf.print_tree_structure()
-            scaler = StandardScaler()
-            X= scaler.fit_transform(X)
-            X_test = scaler.transform(X_test)
-            y_prob = clf.predict_proba(X_test)
-            y_pred = clf.predict(X_test)
-            print(name, balanced_accuracy_score(2*y_test-1, y_pred))
-        
-        else:
-            #Normalization
-            scaler = MinMaxScaler()
-            X_train = scaler.fit(X)
-            X_test_2  = scaler.transform(X_test)
-            y_prob = clf.predict_proba(X_test_2)
-            y_pred = clf.predict(X_test_2)
-            print(name, balanced_accuracy_score(y_test, y_pred))
-        
-        
-        disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax, n_bins=10, strategy=strategy)
+        lr = LogisticRegression()
+        lr.fit(X, y)
+        y_prob = lr.predict_proba(X_test)[:, 1]
+        y_pred = lr.predict(X_test)
+        name = 'Logistic Regression'    
 
-        #print(y_test)
-        print(y_prob)
-    names = ['IDEAL MODEL', 'T-OLCT']
-    ax.legend(names)
-    f.savefig('calibration/calib_{}_{}.pdf'.format(args.dataset.split('/')[-1].split('.')[0], strategy))
+        
+    
+
+    #Append the calibration error in a csv file with the name of the dataset
+    c_e = calibration_error(y_test, y_prob, n_bins=10, strategy=strategy)
+    print("Calibration Error: ", c_e)
+    to_csv('calibration_error.txt', [args.dataset.split('/')[-1].split('.')[0], name, c_e])
+       
+
+    #names = ['IDEAL MODEL', 'OLCT']
+    #disp = CalibrationDisplay.from_predictions(y_test, y_prob, ax=ax, n_bins=10, strategy=strategy)
+    #ax.legend(names)
+    #f.savefig('calibration/calib_{}_{}.pdf'.format(args.dataset.split('/')[-1].split('.')[0], strategy))
 
 
 
