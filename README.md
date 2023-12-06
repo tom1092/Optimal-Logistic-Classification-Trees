@@ -9,3 +9,4 @@ Package name | Version
 [matplotlib](https://matplotlib.org/) | 3.5.1 
 [scikit-learn](https://scikit-learn.org/stable/) | 1.0.2
 [scipy](https://scipy.org/) | 1.0.2
+[gurobipy](https://www.gurobi.com/) | 9.5.0
