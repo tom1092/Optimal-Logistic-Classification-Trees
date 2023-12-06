@@ -315,7 +315,10 @@ class GreedyDecisionTree(BaseEstimator):
 
         X = X[idxs]
         y = y[idxs]
-        clf = LogisticRegression(C= self.C, penalty='l1', solver='liblinear')
+        if self.C == 0:
+            clf = LogisticRegression(penalty='none', solver='lbfgs')
+        else:
+            clf = LogisticRegression(C= self.C, penalty='l1', solver='liblinear')
         clf.fit(X, y)
         return clf.intercept_, clf.coef_.reshape((len(X[0])),)
 

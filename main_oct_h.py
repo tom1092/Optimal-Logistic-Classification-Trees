@@ -231,6 +231,7 @@ class OCTModel(BaseEstimator):
         L_hat = min(np.count_nonzero(y), N - np.count_nonzero(y))
 
 
+
         #N_min is set as 5% of total number of training samples as in the original paper
         N_min = int(0.05*len(y))
 
@@ -516,13 +517,13 @@ class OCTModel(BaseEstimator):
        
 
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy', refit = False)
 
         random_search.fit(X, y)
-        best_estimator = random_search.best_estimator_
+        #best_estimator = random_search.best_estimator_
         best_params = random_search.best_params_
 
-        return best_estimator, best_params
+        return best_params
 
 
 
@@ -597,8 +598,8 @@ if __name__ == '__main__':
     oct_n_weights = []
     oct_runtimes = []
     
-    for seed in [0, 42, 314, 6, 71]:
-    #for seed in [6]:
+    #for seed in [0, 42, 314, 6, 71]:
+    for seed in [0]:
 
         np.random.seed(seed)
 
@@ -631,7 +632,18 @@ if __name__ == '__main__':
         validation = args.validate
 
         if validation:
-            best_mio, best_params = mio_model.validate(X, y )
+            #best_mio, best_params = mio_model.validate(X, y )
+            mio_model.time_limit = 300 
+            best_params = mio_model.validate(X, y)
+            alphas = [best_params['alpha']]
+            mio_model.alpha = alphas[0]
+          
+
+            mio_model.time_limit = args.time
+            mio_model.fit(X, y, debug = args.debug)
+            best_mio = mio_model
+
+
         else:
             best_mio = mio_model.fit(X, y, debug = args.debug)
             best_mio = mio_model

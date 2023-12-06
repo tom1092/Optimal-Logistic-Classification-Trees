@@ -209,9 +209,10 @@ class MARGOTModel(BaseEstimator):
         
 
 
-
-        f = quicksum(w[j, t] * w[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-
+        if self.max_depth == 2:
+            f = quicksum(w[j, t] * w[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
+        if self.max_depth == 3:
+            f = quicksum(w[j, t] * w[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 2, 5, 8, 9, 12])
 
         self.model.setObjective(f)
 
@@ -349,13 +350,13 @@ class MARGOTModel(BaseEstimator):
        
 
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy', refit=False)
 
         random_search.fit(X, y)
-        best_estimator = random_search.best_estimator_
+        #best_estimator = random_search.best_estimator_
         best_params = random_search.best_params_
 
-        return best_estimator, best_params
+        return best_params
 
 
 
@@ -436,7 +437,8 @@ if __name__ == '__main__':
     margot_gaps = []
     margot_n_weights = []
     margot_runtimes = []
-    for seed in [0, 42, 314, 6, 71]:
+    #for seed in [0, 42, 314, 6, 71]:
+    for seed in [0]:
 
         np.random.seed(seed)
 
@@ -471,7 +473,17 @@ if __name__ == '__main__':
         validation = args.validate
 
         if validation:
-            best_mio, best_params = mio_model.validate(X, 2*y - 1)
+            #best_mio, best_params = mio_model.validate(X, 2*y - 1)
+
+            mio_model.time_limit = 300 
+            best_params = mio_model.validate(X, 2*y - 1)
+            alphas = [best_params['alpha_0'], best_params['alpha_1']]
+            mio_model.alpha_0 = alphas[0]
+            mio_model.alpha_1 = alphas[1]
+
+            mio_model.time_limit = args.time
+            mio_model.fit(X, 2*y - 1, debug = args.debug)
+            best_mio = mio_model
         else:
             best_mio = mio_model.fit(X, 2*y - 1, debug = args.debug)
             best_mio = mio_model

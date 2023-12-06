@@ -281,9 +281,14 @@ class OLCTModel(BaseEstimator):
         
 
 
+        if self.max_depth == 2:
+            f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
 
-        f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 4])
-        
+        if self.max_depth == 3:
+            f = quicksum(w_1_0[j, t] + w_1_1[j, t] for t in T_b for j in range(len(X[0]))) + self.alpha_0*quicksum(e[i, 0] for i in range(len(X)))+self.alpha_1*quicksum(e[i, t] for i in range(len(X)) for t in [1, 2, 5, 8, 9, 12])
+
+
+       
         
 
         self.model.setObjective(f)
@@ -427,13 +432,15 @@ class OLCTModel(BaseEstimator):
        
 
         #Cross Validation with 4 fold
-        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy')
+        random_search = GridSearchCV(self, cv = 4, param_grid=param_dist, n_jobs=4, error_score='raise', scoring = 'balanced_accuracy', refit = False)
 
         random_search.fit(X, y)
-        best_estimator = random_search.best_estimator_
+        #best_estimator = random_search.best_estimator_
         best_params = random_search.best_params_
 
-        return best_estimator, best_params
+        #return best_estimator, best_params
+
+        return best_params
 
 
 
@@ -513,8 +520,13 @@ if __name__ == '__main__':
     olct_gaps = []
     olct_n_weights = []
     olct_runtimes = []
+    olct_true_losses = []
+    olct_mip_losses = []
     olct_gaps_true_loss = []
-    for seed in [0, 42, 314, 6, 71]:
+
+    #for seed in [0, 42, 314, 6, 71]:
+    #for seed in [0, 314, 71]:
+    for seed in [0]:
 
         np.random.seed(seed)
 
@@ -551,7 +563,20 @@ if __name__ == '__main__':
         validation = args.validate
 
         if validation:
-            best_mio, best_params = mio_model.validate(X, 2*y - 1)
+            #best_mio, best_params = mio_model.validate(X, 2*y - 1)
+           
+            mio_model.time_limit = 300 
+            best_params = mio_model.validate(X, 2*y - 1)
+            alphas = [best_params['alpha_0'], best_params['alpha_1']]
+            mio_model.alpha_0 = alphas[0]
+            mio_model.alpha_1 = alphas[1]
+
+            mio_model.time_limit = args.time
+            mio_model.fit(X, 2*y - 1, debug = args.debug)
+            best_mio = mio_model
+
+
+
         else:
             best_mio = mio_model.fit(X, 2*y - 1, debug = args.debug)
             best_mio = mio_model
@@ -560,35 +585,46 @@ if __name__ == '__main__':
         olct_gaps.append(best_mio.model.MIPGap)
         olct_runtimes.append(best_mio.model.Runtime)
         olct_n_weights.append(best_mio.mean_n_weights)
+        
+        log_loss, reg_loss = best_mio.mio_tree.compute_log_loss(X, 2*y -1)
 
+        true_loss = log_loss + reg_loss
+        #true_loss = log_loss
+        mip_loss = best_mio.model.objVal
+        gap_true_loss = (true_loss - mip_loss) *100 / true_loss
 
         mio_tree = best_mio.mio_tree
         train_acc = 100*balanced_accuracy_score(2*y - 1, best_mio.predict(X))
         test_acc = 100*balanced_accuracy_score(2*y_test- 1, best_mio.predict(X_test))
 
-        log_loss, reg_loss = mio_tree.compute_log_loss(X, 2*y -1)
-
+        
+        
         print("Log loss true: ", log_loss)
         print("Regularization loss true: ", reg_loss)
-        print("True loss: ", log_loss + reg_loss)
+        print("Total True loss: ", log_loss + reg_loss)
         print("Gurobi loss: ", best_mio.model.objVal)
 
         olct_trains.append(train_acc)
         olct_tests.append(test_acc)
-        
+        olct_true_losses.append(true_loss)
+        olct_mip_losses.append(mip_loss)
+        olct_gaps_true_loss.append(gap_true_loss)
+
+
 
         result_line = []
         dataset = args.dataset.split('/')[-1]
         shape = str(X_data.shape[0])+" $\times$ "+str(X_data.shape[1])
         result_line.append(dataset)
         result_line.append(str(seed))
-
+        result_line.append(str(round(train_acc, 2)))
         result_line.append(str(round(test_acc, 2)))
         result_line.append(str(round(best_mio.model.MIPGap * 1e02, 2)))
         result_line.append(str(round(best_mio.model.Runtime, 2)))
-
+        result_line.append(str(round(true_loss, 2)))
+        result_line.append(str(round(best_mio.model.objVal, 2)))
+        result_line.append(str(round(gap_true_loss, 2)))
         result_line.append(str(round(best_mio.mean_n_weights, 2)))
-        olct_gaps_true_loss.append((log_loss + reg_loss - best_mio.model.objVal) *100 / (best_mio.model.objVal))
 
         to_csv(args.out_file, result_line)
 
@@ -602,9 +638,9 @@ if __name__ == '__main__':
         mio_tree.print_tree_structure()
         print("\n"*3)
 
-        if seed==0:
-            #Save the model
-            pickle.dump(mio_tree, open('olct_'+str(dataset)+'.pkl', 'wb'))
+       
+        #Save the model
+        pickle.dump(mio_tree, open('model_Vs/olct_'+str(dataset)+'_v'+str(args.v)+'_'+'s'+str(seed)+'.pkl', 'wb'))
 
 
 
@@ -624,8 +660,10 @@ if __name__ == '__main__':
     result_line.append(str(round(np.mean(olct_tests), 2)) + " $\pm$ "+str(round(np.std(olct_tests), 2)))
     result_line.append(str(round(np.mean(olct_gaps), 2)) + " $\pm$ "+str(round(np.std(olct_gaps), 2)))
     result_line.append(str(round(np.mean(olct_runtimes), 2)) + " $\pm$ "+str(round(np.std(olct_runtimes), 2)))
+    result_line.append(str(round(np.mean(olct_true_losses), 2)) + " $\pm$ "+str(round(np.std(olct_true_losses), 2)))
+    result_line.append(str(round(np.mean(olct_mip_losses), 2)) + " $\pm$ "+str(round(np.std(olct_mip_losses), 2)))
+    result_line.append(str(round(np.mean(olct_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(olct_gaps_true_loss), 2)))
     result_line.append(str(round(np.mean(olct_n_weights), 2)) + " $\pm$ "+str(round(np.std(olct_n_weights), 2)))
-    #result_line.append(str(round(np.mean(olct_gaps_true_loss), 2)) + " $\pm$ "+str(round(np.std(olct_gaps_true_loss), 2)))
 
 
     to_csv(args.out_file, result_line)

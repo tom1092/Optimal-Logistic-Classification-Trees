@@ -695,7 +695,13 @@ class ClassificationTree:
                     weighting_strategy = None
 
                 if not parallel:
-                    lr = LogisticRegression(class_weight = weighting_strategy, penalty = penalty, solver = 'saga', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
+                    if penalty:
+                        lr = LogisticRegression(class_weight = weighting_strategy, penalty = penalty, solver = 'saga', C = branch.C).fit(X[branch.data_idxs], y[branch.data_idxs])
+
+                    else:
+                        lr = LogisticRegression(class_weight = weighting_strategy, solver = 'saga', penalty='none').fit(X[branch.data_idxs], y[branch.data_idxs])
+
+                    
                     branch.weights = np.squeeze(lr.coef_)
                     branch.intercept = float(lr.intercept_)
 
