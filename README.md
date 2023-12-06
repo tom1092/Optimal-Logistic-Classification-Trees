@@ -17,7 +17,7 @@ Package name | Version
 
 To replicate all the experiments of the paper you can run the main of each model and follow the instruction of the argparse helper.
 
-Please note that the list of the seed in the main function should change (simply uncomment) to run different experiments.
+Please note that the list of the seed in the main function should be edited (simply uncomment) to run different experiments.
 
 ## Datasets
 
