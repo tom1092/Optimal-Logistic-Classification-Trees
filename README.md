@@ -22,4 +22,4 @@ Please note that the list of the seed in the main function should change (simply
 ## Datasets
 
 We did not upload the datasets used in the experiments since they are all publicy available at the UCI [repository](https://archive.ics.uci.edu/datasets).
-Our code read each datasets as a .npy file where the first column must be the target (0/1) of the binary classification task.
+Our code read each datasets as a .npy file where the first column of the nparray must be the target (0/1) of the binary classification task.
