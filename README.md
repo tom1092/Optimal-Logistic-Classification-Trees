@@ -8,3 +8,4 @@ Package name | Version
 [Numpy](http://www.numpy.org/) | 1.22.0
 [matplotlib](https://matplotlib.org/) | 3.5.1 
 [scikit-learn](https://scikit-learn.org/stable/) | 1.0.2
+[scipy](https://scipy.org/) | 1.0.2
